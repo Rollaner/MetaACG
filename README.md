@@ -15,4 +15,4 @@ Instale las dependencias:
 ---
 LICENCIA
 
-This project is licensed under the MIT License.
+This project is licensed under the APGL License.
