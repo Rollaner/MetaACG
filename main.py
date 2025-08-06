@@ -7,32 +7,38 @@ import Generador
 import Heuristicas.IteratedLocalSearch
 import Heuristicas.SimmualtedAnnealing
 import Heuristicas.TabuSearch
-
+## Problemas: IDProblema, Descripcion / Componentes : ProblemaID, Representacion, Funcion Vencindad, Funcion Evaluacion, Version
+## Resultados: ProblemaID, componentVer, Metaheuristica, resultado
+## Prompts: ProblemaID, promptBase, feedbackPrompt, feedBackComponents, feedbackResults, componentVer
 def main():
     pathDB= os.path.join(os.path.dirname(__file__), 'data')
     os.makedirs(pathDB, exist_ok=True)
     componentesPath = os.path.join(pathDB, 'componentes.csv')
     problemasPath = os.path.join(pathDB, 'problemas.csv')
-    promptPath = os.path.join(pathDB,'prompts.csv')
+    feedbackPath = os.path.join(pathDB,'feedback.csv')
+    resultPath = os.path.join(pathDB,'resultados.csv')
     componenteDB = pd.read_csv(componentesPath)
     problemaDB = pd.read_csv(problemasPath)
-    promptDB = pd.read_csv(promptPath)
-    
+    feedbackDB = pd.read_csv(feedbackPath)
+    resultDB = pd.read_csv(resultPath)
+    seed = 10
+    problema = PromptSampler.sampleProblemaDB(problemaDB,seed)
+    seedPrompt = PromptSampler.generateSeedPrompt(problema,componenteDB, seed)
+    iterations = 10
+    while iterations > 0:
 
-
-    
-
-
-
-
+        
+        newPrompt = PromptSampler.updatePrompt(problema,componenteDB,resultDB, feedbackDB,seed)
+        iterations = iterations - 1
 
     componenteDB.to_csv(componentesPath, index=False)
     problemaDB.to_csv(problemasPath,index=False)
-    promptDB.to_csv(promptPath,index=False)
+    feedbackDB.to_csv(feedbackPath,index=False)
+    resultDB.to_csv(resultPath,index=False)
     return 0
 
 
-"Funcion para cargar componentes genericos, requiere revision."
+"Funcion para cargar componentes genericos, requiere sandboxing."
 def cargarComponente(codigo: str):
     nombres = {}
     try:
