@@ -1,0 +1,159 @@
+# Cargador de instancias, junto con las soluciones para evaluar.
+import os
+import glob
+from dataclasses import dataclass
+from typing import List, Tuple, Union
+
+@dataclass
+class Instancia:
+    problemType: str #Tipo del problema: TSP, GC, o Knapsack
+    datasetType: str #Tipo del dataset del problema (Hard o Random)
+    claveInstancia: str  # ID de la instancia: "in_house_6_0"
+    problem: str #Problema en formate de lenguaje natural
+    instanceContent: str #Valores numericos de la instancia como tal: AKA, los valores de EHOP en bruto
+    solutionContent: str #Valores de la solucion optima
+    parsedSolution: Union[List[int], List[float], List[List[int]], None] # Placeholder, solucion en fomato utilizable por codigo
+    solutionValue: int #Valor esperado de la funcion objetivo
+
+class DataLoader:
+    def __init__(self, basePath: str = "Data/EHOP_dataset/"):
+        self.basePath = basePath
+        self.dataStore: dict[str, Instancia] = {}
+
+    def cargarDatos(self):
+        problemas = ["graph_coloring", "traveling_salesman", "knapsack"]
+        datasets = ["hard_dataset", "random_dataset"]
+        for tipoProblema in problemas:
+            for tipoDataset in datasets:
+                CSV = os.path.join(self.basePath, tipoProblema, tipoDataset)
+                self.procesarDatos(tipoProblema, tipoDataset, CSV)
+        
+        print(f"Cargadas {len(self.dataStore)} instancias de problemas.")
+
+    def procesarDatos(self, tipoProblema: str, tipoDataset: str, path: str):
+        archivosCSV = glob.glob(os.path.join(path, "consolidated*.csv"))
+        for csv in archivosCSV:
+            print(csv)
+            with open(csv, 'r') as file:
+                for line in file:
+                    line = line.strip()
+                    if not line:
+                        continue  
+                    try:
+                        parts = line.split(',', 1)
+                        if len(parts) != 2:
+                            print(f"Saltando linea malformada en {csv}: {line}")
+                            continue
+                        claveInstancia = parts[0].strip().strip('"')
+                        rawData = parts[1].strip()
+                        if rawData.startswith('"') and rawData.endswith('"'):
+                            innerContent = rawData[1:-1]
+                            if innerContent.startswith("('") and  innerContent.endswith("')"):
+                                problem = innerContent[2:-2]
+                            else:
+                                problem  = innerContent
+                                print(f"Warning: Prefijo inesperado en {claveInstancia}")
+                        else:
+                            problem = rawData  
+                        self.associarDatos(tipoProblema, tipoDataset, path, claveInstancia, problem)
+                    except Exception as e:
+                        print(f"Error procesando la linea en {csv}: {line} -> {e}")
+
+    def associarDatos(self, tipoProblema: str, tipoDataset: str, nombre: str, claveInstancia: str, problem: str):
+        dirInstancia = None
+        for root, dirs, files in os.walk(nombre):
+            if claveInstancia in dirs:
+                dirInstancia = os.path.join(root, claveInstancia)
+                break
+        if dirInstancia:
+            if tipoProblema == "graph_coloring":
+                extensionI, extensionS = ".col", ".sol"
+            elif tipoProblema == "traveling_salesman":
+                 extensionI, extensionS = ".tsp", ".sol" 
+            else:
+                 extensionI, extensionS = ".in", ".sol" 
+            archivoInnstancia = os.path.join(dirInstancia, f"problem{extensionI}")
+            archivoSolucion = os.path.join(dirInstancia, f"solution{extensionS}")
+            try:
+                with open(archivoInnstancia, 'r') as pf:
+                    instanceContent = pf.read()
+                with open(archivoSolucion, 'r') as sf:
+                    solutionContent = sf.read()
+                objectiveScore, parsedSolution = self.parsearSolucion(tipoProblema, claveInstancia, solutionContent)
+                key=tipoProblema+'_'+tipoDataset+'_'+claveInstancia
+                record = Instancia(
+                    problemType=tipoProblema,
+                    datasetType=tipoDataset,
+                    claveInstancia=key,
+                    problem=problem,
+                    instanceContent=instanceContent,
+                    solutionContent=solutionContent,
+                    parsedSolution=parsedSolution,
+                    solutionValue=objectiveScore
+                )
+                self.dataStore[key] = record
+            except FileNotFoundError:
+                print(f"Archivo de valores del problema o solucion no encontrados para: {key} in {dirInstancia}")
+            except Exception as e:
+                print(f"Error cargando archivos de {key}: {e}")
+                return
+        else:
+            print(f"No se encontro el directorio para: {key} in {nombre}")
+
+    def getDatosInstancia(self, claveInstancia: str) -> Instancia | None:
+        return self.dataStore.get(claveInstancia)
+
+    def getInstancia(self, claveInstancia: str) -> str | None:
+        record = self.dataStore.get(claveInstancia)
+        return record.problem if record else None
+    
+    def parsearSolucion(self, problemType: str, claveInstancia: str, solutionContent: str) -> Union[List[int], any, None]:
+        if problemType == "graph_coloring":
+            return self.parsearGC(claveInstancia, solutionContent)
+        elif problemType == "traveling_salesman":
+            return self.parsearTSP(claveInstancia, solutionContent)
+        elif problemType == "knapsack":
+            return self.parsearK(claveInstancia, solutionContent)
+        else:
+            print(f"Warning: No hay reglas de parseo de soluciones para: {problemType}")
+            return None
+
+###def parsearTSP(self, claveInstancia: str, solutionContent: str) -> Tuple[int, List[int]] | None: #Pendiente, todavia no unterpreto bien los resultados
+        stringValores = solutionContent.replace('\n', ' ').replace(',', ' ',).split()
+        if not stringValores:
+            return None
+        try:
+            valoresInt = [int(v) for v in stringValores]
+            cantidadDeGrupos = valoresInt[0]
+            arraySolucion = valoresInt[1:]        
+            return (cantidadDeGrupos, arraySolucion)   
+        except ValueError as e:
+              print(f"Error parseando la solucion de {claveInstancia}. El contenido era: '{solutionContent.strip()}'. Error: {e}")
+        return None
+
+    def parsearGC(self, claveInstancia: str, solutionContent: str) -> Tuple[int, List[int]] | None:
+        stringValores = solutionContent.replace('\n', ' ').replace(',', ' ',).split()
+        if not stringValores:
+            return None
+        try:
+            valoresInt = [int(v) for v in stringValores]
+            cantidadDeGrupos = valoresInt[0]
+            arraySolucion = valoresInt[1:]
+            return (cantidadDeGrupos, arraySolucion)   
+        except ValueError as e:
+            print(f"Error parseando la solucion de {claveInstancia}. El contenido era: '{solutionContent.strip()}'. Error: {e}")
+        return None
+
+    def parsearK(self, claveInstancia: str, solutionContent: str) -> Tuple[int, List[int]] | None:
+        stringValores = solutionContent.replace('\n', ' ').replace(',', ' ',).split()
+        if not stringValores:
+            return None
+        try:
+            valoresInt = [int(v) for v in stringValores]
+            cantidadDeGrupos = valoresInt[0]
+            arraySolucion = valoresInt[1:]
+            return (cantidadDeGrupos, arraySolucion)   
+        except ValueError as e:
+            print(f"Error parseando la solucion de {claveInstancia}. El contenido era: '{solutionContent.strip()}'. Error: {e}")
+        return None
+

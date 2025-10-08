@@ -1,8 +1,8 @@
 import random
 import itertools
 from string import Template
-
-templateSeed= Template("""TASK:GENERATE_COMPONENT_ONE.REP,NB,EVAL
+## To-Do: Revisar templates. (Sanity check)
+templateSeed= Template("""TASK:GENERATE_COMPONENTS_HEURISTIC_INIT.REP,NB,EVAL
 PROBLEM_DEF:
 ---
 $problema
@@ -20,7 +20,7 @@ INSPIRATIONS:
 $inspirations
 """)
 
-templateUpdate= Template("""TASK:GENERATE_COMPONENT_ONE.REP,NB,EVAL
+templateUpdate= Template("""TASK:GENERATE_COMPONENTS_HEURISTIC.REP,NB,EVAL
 PROBLEM_DEF:
 ---
 $problema
@@ -36,11 +36,28 @@ CRITICAL_INSTRUCTIONS:
 3.SOL_ARG_TYPE_MATCH_R_STR.
 INSPIRATIONS:
 $inspirations                         
-METAHEURSITIC USED AND RESULTS
-$results
+RESULTS
+$resultados
 FEEDBACK:
 $feedback
 """)
+
+feedbackTemplate= Template("""TASK:GENERATE_FEEDBACK 
+FEEDBACK_INSTRUCTIONS:
+1.GENERATE_CRITICAL_FEEDBACK.FOCUS_ON_WEAKNESSES_AND_IMPROVEMENTS.AVOID_POSITIVE_REINFORCEMENT.
+2.FORMAT_AS_KEY_VALUE_PAIRS.EX: "E_CODE_PERF:O(n) for each step. Consider incremental evaluation."
+3.PINPOINT_SPECIFIC_COMPONENT_FLAWS.EX: "NB_CODE_FAIL_LOCAL_OPT:Operator too simple, suggest 2-opt."
+4.SUGGEST_SPECIFIC_IMPROVEMENTS.EX: "R_STR_INADEQUATE:Binary string causing poor exploration. Recommend a permutation."
+PROBLEM_DEF:
+---
+$problema
+---
+COMPONENTS:
+$componente
+RESULTS
+$resultados
+OUTPUT_FORMAT_STRICT:
+"COMPONENT_VERSION", "FEEDBACK" """)
 
 def sampleComponenteDB(componenteDB, problemaID,seed):
 
@@ -90,8 +107,6 @@ def generateSeedPrompt(problemaSample,componenteDB,seed):
     prompt = templateSeed.safe_substitute(problema=problemaSample.iloc[0,1], inspirations=inspiraciones) 
     return prompt
 
-
-
 def updatePrompt(problemaSample, componenteDB, resultDB, feedbackDB, seed): ## podriamos optimizar po medio de almacenar un cache de las variables que se vuelven a calcular
     random.seed(seed)
     problemaID = problemaSample.iloc[0,0]
@@ -105,4 +120,8 @@ def updatePrompt(problemaSample, componenteDB, resultDB, feedbackDB, seed): ## p
     combinaciones = combinarComponentes(componentSample)
     inspiraciones = ", ".join(f"{v} - {e}" for v, e in combinaciones)
     prompt = templateUpdate.safe_substitute(problema=problemaSample.iloc[0,1], inspirations=inspiraciones, resultados=resultados, feedback=feedback) 
+    return prompt
+## Feedback tiene que estar enfocado en un solo set de componentes a la vez. El ultimo que fue generado
+def generateFeedbackPrompt(problemaSample, componente, resultados):
+    prompt = feedbackTemplate.safe_substitute(problema=problemaSample.iloc[0,1], componente=componente, resultados=resultados) 
     return prompt

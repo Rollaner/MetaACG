@@ -1,16 +1,19 @@
+import ast
 import pandas as pd
 import matplotlib as plot
 import numpy as np
 import os
 import PromptSampler
+from dotenv import load_dotenv
 import Generador
 import Heuristicas.IteratedLocalSearch
 import Heuristicas.SimmualtedAnnealing
 import Heuristicas.TabuSearch
-## Problemas: IDProblema, Descripcion / Componentes : ProblemaID, Representacion, Funcion Vencindad, Funcion Evaluacion, Version
+## Problemas: IDProblema, Descripcion / Componentes : ProblemaID, Representacion, Funcion Vencindad, Funcion ast.literal_evaluacion, Version
 ## Resultados: ProblemaID, componentVer, Metaheuristica, resultado
 ## Prompts: ProblemaID, promptBase, feedbackPrompt, feedBackComponents, feedbackResults, componentVer
 def main():
+    load_dotenv()
     pathDB= os.path.join(os.path.dirname(__file__), 'data')
     os.makedirs(pathDB, exist_ok=True)
     componentesPath = os.path.join(pathDB, 'componentes.csv')
@@ -42,7 +45,7 @@ def main():
 def cargarComponente(codigo: str):
     nombres = {}
     try:
-        componente = eval(codigo,globals(),nombres)
+        componente = ast.literal_eval(codigo,globals(),nombres)
         return componente
     except SyntaxError: 
         "Si el componente no es una expresion Lamda o representacion simple, se asume que es una funcion multilinea"
