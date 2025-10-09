@@ -18,7 +18,8 @@ CRITICAL_INSTRUCTIONS:
 2. NO_ADD_TEXT_EXPLANATION_FORMAT_OUTSIDE_CSV.
 3. SOL_ARG_TYPE_MUST_MATCH_SOL_TYPE_DEF_VALUE.
 4. MATH_DEF_MUST_BE_PARSABLE_BY_PYTHON_SYM_PACKAGE (e.g., SymPy).
-INSPIRATIONS:
+5. MATCH_PROBLEM-REQUIRED_SOL_TYPE_IF_EXISTS
+PROBLEM_TYPE_MATCHES:
 $inspirations
 """)
 
@@ -37,10 +38,13 @@ CRITICAL_INSTRUCTIONS:
 2. NO_ADD_TEXT_EXPLANATION_FORMAT_OUTSIDE_CSV.
 3. SOL_ARG_TYPE_MUST_MATCH_SOL_TYPE_DEF_VALUE.
 4. MATH_DEF_MUST_BE_PARSABLE_BY_PYTHON_SYM_PACKAGE (e.g., SymPy).
-INSPIRATIONS:
+5. MATCH_PROBLEM-REQUIRED_SOL_TYPE_IF_EXISTS
+PROBLEM_TYPE_MATCHES:
 $inspirations                     
 RESULTS
 $resultados
+EXPECTED
+$esperado
 FEEDBACK:
 $feedback
 """)
@@ -48,19 +52,28 @@ $feedback
 feedbackTemplate= Template("""TASK:GENERATE_FEEDBACK 
 FEEDBACK_INSTRUCTIONS:
 1.GENERATE_CRITICAL_FEEDBACK.FOCUS_ON_WEAKNESSES_AND_IMPROVEMENTS.AVOID_POSITIVE_REINFORCEMENT.
-2.FORMAT_AS_KEY_VALUE_PAIRS.EX: "E_CODE_PERF:O(n) for each step. Consider incremental evaluation."
-3.PINPOINT_SPECIFIC_MATH_FLAWS.EX: "NB_CODE_FAIL_LOCAL_OPT:Operator in objective function not aligned with problem def, Suggest operator change."
-4.SUGGEST_SPECIFIC_IMPROVEMENTS.EX: "R_STR_INADEQUATE:Binary string causing poor exploration. Recommend a permutation."
-PROBLEM_DEF:
+2.FORMAT_AS_KEY_VALUE_PAIRS.EX: "EVAL_HAS_NO_CONSTRAINTS:O(n). Add constraints to check validity at line X."
+3.PINPOINT_SPECIFIC_MATH_FLAWS.EX: "OBJ_CODE_FAIL_LOCAL_OPT:Operator in objective function not aligned with problem def, Suggest operator change in line: X."
+4.SUGGEST_SPECIFIC_IMPROVEMENTS.EX: "R_STR_INADEQUATE:Binary string causing poor exploration. Recommend a permutation in line X."
+5.FOCUS_ON_COMMON_ERRORS: EVAL_HAS_NO_CONSTRAINTS, RESULTS_NOT_CONSISTENT:Objective, Eval and expected result shoulñd be the same. LOGIC_ERROR: Eval does not match the problem constraints. ARITHMETIC_ERROR: Objective function does not math the values given in the problem definition.
 ---
+PROBLEM_RAW:
 $problema
 ---
-COMPONENTS:
-$componente
+DEFINITION:
+$definicion
+---                      
+OBJECTIVE_FUNCTION:
+$objetivo
+---
+EVALUATION_FUNCTION:
+$evaluacion                  
+---
 RESULTS
 $resultados
+EXPECTED: $esperado
 OUTPUT_FORMAT_STRICT:
-"COMPONENT_VERSION", "FEEDBACK" """)
+"DEFINITION", "FEEDBACK" """)
 
 #Modificar esto para que carge de las instancias
 
@@ -69,21 +82,25 @@ def generarStrings(dataframe):
         return  "\n".join(dataframe['Text'].astype(str).tolist())
     else: return f"{len(dataframe)} items found."
 
-def generateSeedPrompt(problemaSample,seed):
+def generateSeedPrompt(problemaSample:str,seed):
     random.seed(seed)
-    problemaID = problemaSample.iloc[0,0]
-    inspiraciones = "placeholder"
-    prompt = templateSeed.safe_substitute(problema=problemaSample.iloc[0,1], inspirations=inspiraciones) 
+    inspiraciones = "NOT AVAILABLE"
+    prompt = templateSeed.safe_substitute(problema=problemaSample, inspirations=inspiraciones) 
     return prompt
 
-def updatePrompt(problemaSample, componenteDB, resultDB, feedbackDB, seed):
+def generateSeedPromptWithProblemTYpe(problemaSample:str,tipoProblema:str,seed):
+    random.seed(seed)
+    inspiraciones = tipoProblema
+    prompt = templateSeed.safe_substitute(problema=problemaSample, inspirations=inspiraciones) 
+    return prompt
+
+def updatePrompt(problemaSample:str, tipoProblema:str, resultados, esperado, feedback:str, seed):
     ## En curso, este deberia añadir el feedback del evaluador, y los resultados esperados de las funciones objetivo y evaluacion. 
     random.seed(seed)
-    problemaID = problemaSample.iloc[0,0]
-    prompt = templateUpdate.safe_substitute(problema=problemaSample.iloc[0,1], inspirations=inspiraciones, resultados=resultados, feedback=feedback) 
+    prompt = templateUpdate.safe_substitute(problema=problemaSample, inspirations=tipoProblema, resultados=resultados, esperado=esperado, feedback=feedback) 
     return prompt
 ## Feedback tiene que estar enfocado en los errores mas comunes de las LLM, Y errores que sabemos que son probables. por ejemplo que la funcion de evaluacion no tenga restricciones o bien que los numeros de la funcion objetivo no encajen con los datos de la instancia
 ## Este tambien nos sirve para clasificar automaticamente los errores que se detecten, en teoria
-def generateFeedbackPrompt(problemaSample, componente, resultados):
-    prompt = feedbackTemplate.safe_substitute(problema=problemaSample.iloc[0,1], componente=componente, resultados=resultados) 
+def generateFeedbackPrompt(problemaSample:str, definicion:str, objetivo, evaluacion, resultados, esperado):
+    prompt = feedbackTemplate.safe_substitute(problema=problemaSample.iloc[0,1], definicion=definicion,objetivo=objetivo, evaluacion=evaluacion, resultados=resultados, esperado=esperado) 
     return prompt
