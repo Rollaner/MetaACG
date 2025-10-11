@@ -1,6 +1,4 @@
 #Generador de promts y cargado de las maquinas.
-import random
-import itertools
 from string import Template
 ## To-Do: Revisar templates. (Sanity check)
 templateSeed= Template("""TASK:GENERATE_MATH_DEF.CODE_FUNC.EVAL
@@ -82,21 +80,18 @@ def generarStrings(dataframe):
         return  "\n".join(dataframe['Text'].astype(str).tolist())
     else: return f"{len(dataframe)} items found."
 
-def generateSeedPrompt(problemaSample:str,seed):
-    random.seed(seed)
+def generateSeedPrompt(problemaSample:str):
     inspiraciones = "NOT AVAILABLE"
     prompt = templateSeed.safe_substitute(problema=problemaSample, inspirations=inspiraciones) 
     return prompt
 
-def generateSeedPromptWithProblemTYpe(problemaSample:str,tipoProblema:str,seed):
-    random.seed(seed)
+def generateSeedPromptWithProblemTYpe(problemaSample:str,tipoProblema:str):
     inspiraciones = tipoProblema
     prompt = templateSeed.safe_substitute(problema=problemaSample, inspirations=inspiraciones) 
     return prompt
 
-def updatePrompt(problemaSample:str, tipoProblema:str, resultados, esperado, feedback:str, seed):
+def updatePrompt(problemaSample:str, tipoProblema:str, resultados, esperado, feedback:str):
     ## En curso, este deberia añadir el feedback del evaluador, y los resultados esperados de las funciones objetivo y evaluacion. 
-    random.seed(seed)
     prompt = templateUpdate.safe_substitute(problema=problemaSample, inspirations=tipoProblema, resultados=resultados, esperado=esperado, feedback=feedback) 
     return prompt
 ## Feedback tiene que estar enfocado en los errores mas comunes de las LLM, Y errores que sabemos que son probables. por ejemplo que la funcion de evaluacion no tenga restricciones o bien que los numeros de la funcion objetivo no encajen con los datos de la instancia

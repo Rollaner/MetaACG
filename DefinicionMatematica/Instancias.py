@@ -57,7 +57,8 @@ class DataLoader:
                             problem = rawData  
                         self.associarDatos(tipoProblema, tipoDataset, path, claveInstancia, problem)
                     except Exception as e:
-                        print(f"Error procesando la linea en {csv}: {line} -> {e}")
+                        continue;
+                        #print(f"Error procesando la linea en {csv}: {line} -> {e}")
 
     def associarDatos(self, tipoProblema: str, tipoDataset: str, nombre: str, claveInstancia: str, problem: str):
         dirInstancia = None
@@ -118,17 +119,8 @@ class DataLoader:
             print(f"Warning: No hay reglas de parseo de soluciones para: {problemType}")
             return None
 
-###def parsearTSP(self, claveInstancia: str, solutionContent: str) -> Tuple[int, List[int]] | None: #Pendiente, todavia no unterpreto bien los resultados
-        stringValores = solutionContent.replace('\n', ' ').replace(',', ' ',).split()
-        if not stringValores:
-            return None
-        try:
-            valoresInt = [int(v) for v in stringValores]
-            cantidadDeGrupos = valoresInt[0]
-            arraySolucion = valoresInt[1:]        
-            return (cantidadDeGrupos, arraySolucion)   
-        except ValueError as e:
-              print(f"Error parseando la solucion de {claveInstancia}. El contenido era: '{solutionContent.strip()}'. Error: {e}")
+
+    def parsearTSP(self, claveInstancia: str, solutionContent: str) -> Tuple[int, List[int]] | None: #Pendiente, todavia no unterpreto bien los resultados
         return None
 
     def parsearGC(self, claveInstancia: str, solutionContent: str) -> Tuple[int, List[int]] | None:

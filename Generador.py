@@ -1,6 +1,6 @@
 from langchain_core.messages import HumanMessage, SystemMessage
 #from langchain.chat_models import init_chat_model
-from langchain.chat_models import ChatOpenAI
+from langchain_community.chat_models import ChatOpenAI
 import os
 
 class generador:
@@ -25,8 +25,7 @@ class generador:
         chat = ChatOpenAI(
             temperature = 0.7,
             model = os.environ.get("MODEL"),
-            openai_api_key= os.environ.get("API_KEY"),
-            openai_api_key = os.environ.get("OPENROUTER_API_KEY"), 
+            openai_api_key = os.environ.get("API_KEY"),
             openai_api_base = os.environ.get("OPENROUTER_BASE_URL"),
             ) # type: ignore
         chat([SystemMessage(content= self.SYSTEMPROMPT)]) ## ROL, Guianza E Instrucciones
@@ -38,7 +37,6 @@ class generador:
             temperature = 0.7,
             model = os.environ.get("MODEL"),
             openai_api_key= os.environ.get("API_KEY"),
-            openai_api_key = os.environ.get("OPENROUTER_API_KEY"), 
             openai_api_base = os.environ.get("OPENROUTER_BASE_URL"),
             ) # type: ignore
         chat([SystemMessage(content=self.SYSTEMPROMPT)]) 
@@ -49,10 +47,8 @@ class generador:
         chat = ChatOpenAI(
             temperature = 0.7,
             model = os.environ.get("MODEL"),
-            openai_api_key= os.environ.get("API_KEY"),
-            openai_api_key = os.environ.get("OPENROUTER_API_KEY"), 
+            openai_api_key = os.environ.get("API_KEY"),
             openai_api_base = os.environ.get("OPENROUTER_BASE_URL"),
             ) # type: ignore
-        return 0
 
 
