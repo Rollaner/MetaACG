@@ -17,6 +17,7 @@ import Heuristicas.TabuSearch
 def main():
     load_dotenv()
     semilla = 1234
+    #Inicializar datos
     pathDB= os.path.join(os.path.dirname(__file__), 'Data')
     os.makedirs(pathDB, exist_ok=True)
     componentesPath = os.path.join(pathDB, 'componentes.csv')
@@ -27,8 +28,12 @@ def main():
     problemaDB = pd.read_csv(problemasPath)
     feedbackDB = pd.read_csv(feedbackPath)
     resultDB = pd.read_csv(resultPath)
-    respuesta = definirProblema()
+    instancias = DataLoader()
+    instancias.cargarDatos()
+    #Datos inicializados
+    respuesta, instancia = definirProblema(instancias)
     print(respuesta)
+    feedback = evaluarDefinicion(instancia, respuesta)
     componenteDB.to_csv(componentesPath, index=False)
     problemaDB.to_csv(problemasPath,index=False)
     feedbackDB.to_csv(feedbackPath,index=False)
@@ -38,11 +43,9 @@ def main():
 def reiniciarLLMS():
     return 0
 
-def definirProblema():
+def definirProblema(instancias:DataLoader):
     #TO-DO modificar promptsamplerDM para que pueda trabajar con los datos de instancia. Cargar LLMs, y ver como guardar las respuestas. 
     #La solucion para eso, se puede despues repetir para el evaluador. Puesto que el formato es un CSV, podemos extraer directamente lo que necesitamos.
-    instancias = DataLoader()
-    instancias.cargarDatos()
     instanciaPrueba:Instancia = instancias.getDatosInstancia("graph_coloring_random_dataset_in_house_9_8")
     ## Generar prompts con PromptSamplerDM
     prompt = PromptSamplerDM.generateSeedPrompt(instanciaPrueba.problem)
@@ -54,8 +57,25 @@ def definirProblema():
     #llms.cargarLLMs
     #respuesta = llms.generarDefinicion(prompt)
     ## Falta guardar las respuestas
-    return respuesta
+    return respuesta, instanciaPrueba
 
+def evaluarDefinicion(instancia:Instancia, respuesta:str):
+    valores = []
+    for valor in respuesta.split(','):
+        valores.append(valor.strip('"'))
+    respuestaDef = valores [1]
+    respuestaObj = valores[2]
+    respuestaEval = valores[3]
+    MathResultados = probarDefinicion(respuestaObj,respuestaEval, instancia.parsedSolution)
+    feedback =  PromptSamplerDM.generateFeedbackPrompt(instancia.problem,respuestaDef,respuestaObj,respuestaEval,MathResultados,instancia.solutionValue)
+    return feedback
+
+def probarDefinicion(objective:str,eval:str,parsedSolution:list):
+    ## viendo como reducir el riesgo de las alucinaciones. Son poco probables, pero igual por si acaso
+    ## restrictedPyhton es demasiado viego. ast_eval() es probablemente la mejor solucion. We have to provide a dict for the parsed solution, and an empty dict of global variables
+    ## Then we remove the builtins. It's not bulletproof but should grab MOST of the jailbreak attempts. No open, no write, etc. {"__builtins__":None},safe_dict.
+    ## as the code should only need the solution to evaluate (and return a mere number) it should work fine.
+    return 0
 
 def optimizarProblema(problemaDB,componenteDB,resultDB,feedbacDB,seed):
     problema = PromptSampler.sampleProblemaDB(problemaDB,seed)
@@ -83,5 +103,7 @@ def cargarComponente(codigo: str):
         raise ValueError(f"No existen funciones encontradas en codigo cargado con exec()")
     except Exception as e:
         raise RuntimeError(f"no se ha podido cargar el codigo recuperado: {e}")
+
+
 
 main()

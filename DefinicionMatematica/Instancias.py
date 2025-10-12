@@ -7,6 +7,8 @@ from typing import List, Tuple, Union
 @dataclass
 class Instancia:
     problemType: str #Tipo del problema: TSP, GC, o Knapsack
+    problemCostume: str #Variante, o "traje" del problema
+    problemSubType: str #Standard o invertido
     datasetType: str #Tipo del dataset del problema (Hard o Random)
     claveInstancia: str  # ID de la instancia: "in_house_6_0"
     problem: str #Problema en formate de lenguaje natural
@@ -44,8 +46,10 @@ class DataLoader:
                         if len(parts) != 2:
                             print(f"Saltando linea malformada en {csv}: {line}")
                             continue
-                        claveInstancia = parts[0].strip().strip('"')
-                        rawData = parts[1].strip()
+                        claveInstancia = parts[0].strip('"')
+                        traje = parts[1].strip('"')
+                        subtipo = parts[2].strip('"')
+                        rawData = parts[3].strip()
                         if rawData.startswith('"') and rawData.endswith('"'):
                             innerContent = rawData[1:-1]
                             if innerContent.startswith("('") and  innerContent.endswith("')"):
@@ -55,12 +59,12 @@ class DataLoader:
                                 print(f"Warning: Prefijo inesperado en {claveInstancia}")
                         else:
                             problem = rawData  
-                        self.associarDatos(tipoProblema, tipoDataset, path, claveInstancia, problem)
+                        self.associarDatos(tipoProblema, tipoDataset, traje, subtipo, path, claveInstancia, problem)
                     except Exception as e:
                         continue;
                         #print(f"Error procesando la linea en {csv}: {line} -> {e}")
 
-    def associarDatos(self, tipoProblema: str, tipoDataset: str, nombre: str, claveInstancia: str, problem: str):
+    def associarDatos(self, tipoProblema: str, tipoDataset: str, traje:str, subtipo:str, nombre: str, claveInstancia: str, problem: str):
         dirInstancia = None
         for root, dirs, files in os.walk(nombre):
             if claveInstancia in dirs:
@@ -83,14 +87,16 @@ class DataLoader:
                 objectiveScore, parsedSolution = self.parsearSolucion(tipoProblema, claveInstancia, solutionContent)
                 key=tipoProblema+'_'+tipoDataset+'_'+claveInstancia
                 record = Instancia(
-                    problemType=tipoProblema,
-                    datasetType=tipoDataset,
-                    claveInstancia=key,
-                    problem=problem,
-                    instanceContent=instanceContent,
-                    solutionContent=solutionContent,
-                    parsedSolution=parsedSolution,
-                    solutionValue=objectiveScore
+                    problemType=tipoProblema, #Tipo del problema: TSP, GC, o Knapsack
+                    datasetType=tipoDataset, #Tipo del dataset del problema (Hard o Random)
+                    problemCostume = traje, #Variante, o "traje" del problema
+                    problemSubType = subtipo, #Standard o invertido
+                    claveInstancia=key, # ID de la instancia: "in_house_6_0_hard_dataset_graph_coloring"
+                    problem=problem, #Problema en formate de lenguaje natural
+                    instanceContent=instanceContent, #Valores numericos de la instancia como tal: AKA, los valores de EHOP en bruto
+                    solutionContent=solutionContent, #Valores de la solucion optima
+                    parsedSolution=parsedSolution, # Placeholder, solucion en fomato utilizable por codigo
+                    solutionValue=objectiveScore  #Valor esperado de la funcion objetivo
                 )
                 self.dataStore[key] = record
             except FileNotFoundError:
