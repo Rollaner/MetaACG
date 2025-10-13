@@ -4,6 +4,8 @@ import matplotlib as plot
 import numpy as np
 import os
 import PromptSampler
+import math
+from typing import List, Union
 from dotenv import load_dotenv
 from DefinicionMatematica import Evaluador, PromptSamplerDM
 from DefinicionMatematica.Instancias import Instancia,DataLoader
@@ -30,10 +32,13 @@ def main():
     resultDB = pd.read_csv(resultPath)
     instancias = DataLoader()
     instancias.cargarDatos()
-    #Datos inicializados
+    print("Datos inicializados. Iniciando definicion matematica")
     respuesta, instancia = definirProblema(instancias)
-    print(respuesta)
-    feedback = evaluarDefinicion(instancia, respuesta)
+    for i in 3:
+        print(respuesta)
+        feedback, resultados = evaluarDefinicion(instancia, respuesta)
+        respuesta = refinarDefinicion(instancia,feedback, resultados)
+    print("Fin proceso de definicion matematica")
     componenteDB.to_csv(componentesPath, index=False)
     problemaDB.to_csv(problemasPath,index=False)
     feedbackDB.to_csv(feedbackPath,index=False)
@@ -68,14 +73,39 @@ def evaluarDefinicion(instancia:Instancia, respuesta:str):
     respuestaEval = valores[3]
     MathResultados = probarDefinicion(respuestaObj,respuestaEval, instancia.parsedSolution)
     feedback =  PromptSamplerDM.generateFeedbackPrompt(instancia.problem,respuestaDef,respuestaObj,respuestaEval,MathResultados,instancia.solutionValue)
-    return feedback
+    return feedback, MathResultados
 
-def probarDefinicion(objective:str,eval:str,parsedSolution:list):
-    ## viendo como reducir el riesgo de las alucinaciones. Son poco probables, pero igual por si acaso
-    ## restrictedPyhton es demasiado viego. ast_eval() es probablemente la mejor solucion. We have to provide a dict for the parsed solution, and an empty dict of global variables
-    ## Then we remove the builtins. It's not bulletproof but should grab MOST of the jailbreak attempts. No open, no write, etc. {"__builtins__":None},safe_dict.
-    ## as the code should only need the solution to evaluate (and return a mere number) it should work fine.
-    return 0
+## Requiere revision y pruebas.
+def probarDefinicion(obj: str, eval: str, parsedSolution: List[Union[int, float]]):
+    # Definir entorno de ejecucion
+    safe_globals = {
+        '__builtins__': None,
+        'abs': abs,
+        'min': min,
+        'max': max,
+        'sum': sum,
+        'math': math,
+    }
+    safe_globals.update(math.__dict__)
+    #Pasando la solucion como variable local
+    local_vars = {
+        'solution': parsedSolution
+    }
+    #Evalucion
+    try:
+        objResult = eval(obj,safe_globals,local_vars)
+        evalResult = eval(eval, safe_globals, local_vars)
+        if isinstance(evalResult, (int, float)) and isinstance(objResult, (int, float)):
+            return f"Evaluation Results: Objective Function Result: {objResult}, Evaluation Function Result: {evalResult}, Equal?: {objResult == evalResult}" 
+        else: #Una funciuon objetivo y por extension la de evaluacion deben retornar valores numericos, no hacerlo seria un fallo catastrofico en la logica
+            raise TypeError(f"Evaluation returned a non-numerical value: {type(objResult)} / {type(evalResult)}")
+
+    except Exception as e: #Retornar excepciones si existen: Esto indica un fallo en la sintax de las funciones
+        return f"Critical execution error for solution {parsedSolution}: {type(e).__name__} - {e}"
+
+
+def refinarDefinicion(instancia:Instancia,feedback:str, resultados):
+    return PromptSamplerDM.updatePrompt(instancia.problem, instancia.problemType,resultados,instancia.solutionValue,feedback)
 
 def optimizarProblema(problemaDB,componenteDB,resultDB,feedbacDB,seed):
     problema = PromptSampler.sampleProblemaDB(problemaDB,seed)
