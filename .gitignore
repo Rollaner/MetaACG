@@ -1,3 +1,5 @@
 /Componentes
 *.env
 Data/EHOP_dataset
+definicion_log.csv
+*.pyc

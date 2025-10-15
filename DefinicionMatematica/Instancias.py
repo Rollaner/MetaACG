@@ -42,8 +42,8 @@ class DataLoader:
                     if not line:
                         continue  
                     try:
-                        parts = line.split(',', 1)
-                        if len(parts) != 2:
+                        parts = line.split(',',3)
+                        if len(parts) != 4:
                             print(f"Saltando linea malformada en {csv}: {line}")
                             continue
                         claveInstancia = parts[0].strip('"')
@@ -61,8 +61,8 @@ class DataLoader:
                             problem = rawData  
                         self.associarDatos(tipoProblema, tipoDataset, traje, subtipo, path, claveInstancia, problem)
                     except Exception as e:
-                        continue;
-                        #print(f"Error procesando la linea en {csv}: {line} -> {e}")
+                        continue
+                        print(f"Error procesando la linea en {csv}: {line} -> {e}")
 
     def associarDatos(self, tipoProblema: str, tipoDataset: str, traje:str, subtipo:str, nombre: str, claveInstancia: str, problem: str):
         dirInstancia = None
@@ -125,7 +125,9 @@ class DataLoader:
             print(f"Warning: No hay reglas de parseo de soluciones para: {problemType}")
             return None
 
-
+    def getAllInstancias(self) -> List[Instancia]:
+        return list(self.dataStore.values())
+    
     def parsearTSP(self, claveInstancia: str, solutionContent: str) -> Tuple[int, List[int]] | None: #Pendiente, todavia no unterpreto bien los resultados
         return None
 

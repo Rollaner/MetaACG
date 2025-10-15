@@ -1,11 +1,16 @@
 from langchain_core.messages import HumanMessage, SystemMessage
 #from langchain.chat_models import init_chat_model
-from langchain_community.chat_models import ChatOpenAI
-import os
+from langchain_openai import ChatOpenAI
+from dotenv import load_dotenv
+
 
 class generador:
     SYSTEMPROMPT: str
-    
+    chat: any 
+
+    def __init__(self):
+        load_dotenv()
+
     SYSTEMPROMPT = """You are a self-optimizing AI designed for problem optimization. 
         Your primary function is to apply and critically evaluate advanced heuristics and mathematical principles to find the most efficient and optimal solutions. 
         Your objective is always to achieve the best possible results.
@@ -20,35 +25,21 @@ class generador:
         Failure to adhere to these constraints will result in a heavy penalty. 
         Any feedback you provide must be critical and actionable, focusing on specific weaknesses and offering concrete suggestions for improvement. 
         Therefore, every response must be the product of thorough and careful analysis."""
-
+    
     def generarDefinicion(self,prompt):
-        chat = ChatOpenAI(
-            temperature = 0.7,
-            model = os.environ.get("MODEL"),
-            openai_api_key = os.environ.get("API_KEY"),
-            openai_api_base = os.environ.get("OPENROUTER_BASE_URL"),
-            ) # type: ignore
-        chat([SystemMessage(content= self.SYSTEMPROMPT)]) ## ROL, Guianza E Instrucciones
-        respuesta = chat([HumanMessage(content=prompt)]) ## Datos
+        respuesta = self.chat.invoke([SystemMessage(content= self.SYSTEMPROMPT),HumanMessage(content=prompt)]) ## ROL, Guianza E Instrucciones
         return respuesta
 
     def generarFeedback(self,prompt): ##Esto tiene que ser un prompt aparte para generar feedback. El mensaje de sistema puede ser el mismo
-        chat = ChatOpenAI(
-            temperature = 0.7,
-            model = os.environ.get("MODEL"),
-            openai_api_key= os.environ.get("API_KEY"),
-            openai_api_base = os.environ.get("OPENROUTER_BASE_URL"),
-            ) # type: ignore
-        chat([SystemMessage(content=self.SYSTEMPROMPT)]) 
-        respuesta = chat([HumanMessage(content=prompt)])
+        respuesta = self.chat([SystemMessage(content=self.SYSTEMPROMPT),[HumanMessage(content=prompt)]]) 
         return respuesta
 
-    def cargarLLMs(): ## To-Do: crear estructura de datos que contanga el enjambre de LLMS
-        chat = ChatOpenAI(
+    def cargarLLMs(self): ## To-Do: crear estructura de datos que contanga el enjambre de LLMS
+        self.chat = ChatOpenAI(
+            model = 'gpt-5-nano',
             temperature = 0.7,
-            model = os.environ.get("MODEL"),
-            openai_api_key = os.environ.get("API_KEY"),
-            openai_api_base = os.environ.get("OPENROUTER_BASE_URL"),
-            ) # type: ignore
+            timeout=None,
+            max_retries=2,
+            )
 
 
