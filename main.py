@@ -1,4 +1,6 @@
 import ast
+import argparse
+import sys
 from dotenv import load_dotenv
 import pandas as pd
 import matplotlib as plot
@@ -16,12 +18,17 @@ import Heuristicas.SimmualtedAnnealing
 import Heuristicas.TabuSearch
 ## ProblemasOPT: IDProblema, Descripcion / Componentes : ProblemaID, Representacion, Funcion Vencindad, Funcion Evaluacion, Version
 ## Resultados: ProblemaID, componentVer, Metaheuristica, resultado
-## Prompts: ProblemaID, promptBase, feedbackPrompt, feedBackComponents, feedbackResults, componentVer
+## Prompts: ProblemaID, promptBase, feedbackPrompt, feedBackComponents, feedbackResults, componentVe
+
 def main():
     semilla = 1234
     #Inicializar datos
     load_dotenv()
+    #Modificacion para pruebas, prepara modo batch por defecto. Estas lineas se tienen que eliminar cuando se empieze a optimizar
+    if len(sys.argv) == 1:
+        sys.argv.append('-b')
     pathDB= os.path.join(os.path.dirname(__file__), 'Data')
+    #Fin modificacion para pruebas
     os.makedirs(pathDB, exist_ok=True)
     componentesPath = os.path.join(pathDB, 'componentes.csv')
     problemasPath = os.path.join(pathDB, 'problemas.csv')
@@ -35,39 +42,33 @@ def main():
     instancias.cargarDatos()
     llms = generador()
     llms.cargarLLMs()
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-b', '--batch',action='store_true', dest='batch_def', help='Definir problemas en batch, no optimiza')
+    parser.add_argument('problem_ID', nargs='?',default=None,help="ID del problema a optimizar: Formato: Tipo_dataset_ID")
+    args=parser.parse_args()
     print("Datos inicializados. Iniciando definicion matematica")
     #Problemas en batch
     datos = []
     header = ['Instancia', 'Iteracion', 'Respuesta', 'Feedback', 'Resultados']
-    i = 0
-    for instancia in instancias.getAllInstancias():
-        respuesta = definirProblema(llms,instancia)
-        print(respuesta)
-        j = 0
-        datos.append([instancia, j, respuesta, '', ''])
-        #for i in range(3):
-            #feedback, resultados = evaluarDefinicion(instancia, respuesta)
-           # respuesta = refinarDefinicion(instancia,feedback, resultados)
-          #  print(feedback,respuesta, resultados)
-         #   datos.append([instancia, i, respuesta, feedback, resultados])
-        #j = j +1
+    if args.batch_def:
+        definirBatch(instancias,llms,datos)
+        csvDefinicion = 'definicion_log.csv'
+        try:
+            with open(csvDefinicion, 'w', newline='', encoding='utf-8') as csvfile:
+                escritor = csv.writer(csvfile)
+                escritor.writerow(header)
+                escritor.writerows(datos)
+        except Exception as e:
+            print("Error de escritura durante el proceso de definicion, no se han guardado los resultados")
+        print("Fin proceso de definicion matematica")
+    else:
     #Problema individual
-    #instanciaPrueba:Instancia = instancias.getDatosInstancia("graph_coloring_random_dataset_in_house_9_8")
-    #respuesta = definirProblema(instanciaPrueba)
-    #for i in 3:
-    #    print(respuesta)
-    #    feedback, resultados = evaluarDefinicion(instancia, respuesta)
-    #    respuesta = refinarDefinicion(instancia,feedback, resultados)
-    csvDefinicion = 'definicion_log.csv'
-    try:
-        with open(csvDefinicion, 'w', newline='', encoding='utf-8') as csvfile:
-            escritor = csv.writer(csvfile)
-            escritor.writerow(header)
-            escritor.writerows(datos)
-    except Exception as e:
-        print("Error de escritura durante el proceso de definicion, no se han guardado los resultados")
-    print("Fin proceso de definicion matematica")
-
+        instancia:Instancia = instancias.getDatosInstancia("graph_coloring_random_dataset_in_house_9_8")
+        respuesta = definirProblema(instancia)
+        for i in 3:
+            print(respuesta)
+            feedback, resultados = evaluarDefinicion(instancia, respuesta)
+            respuesta = refinarDefinicion(instancia,feedback, resultados)
     componenteDB.to_csv(componentesPath, index=False)
     problemaDB.to_csv(problemasPath,index=False)
     feedbackDB.to_csv(feedbackPath,index=False)
@@ -76,6 +77,20 @@ def main():
 
 def reiniciarLLMS():
     return 0
+
+def definirBatch(instancias:DataLoader,llms:generador,datos:any):
+    for instancia in instancias.getAllInstancias():
+        respuesta = definirProblema(llms,instancia)
+        i = 0
+        j = 0
+        datos.append([instancia, i, respuesta, '', ''])
+        for j in range(3):
+            feedback, resultados = evaluarDefinicion(instancia, respuesta)
+            respuesta = refinarDefinicion(instancia,feedback, resultados)
+            print(feedback,respuesta, resultados)
+            datos.append([instancia, i, respuesta, feedback, resultados])
+        i = i + 1
+
 
 def definirProblema(llms,instancia:Instancia):
     ## Generar prompts con PromptSamplerDM
@@ -86,6 +101,7 @@ def definirProblema(llms,instancia:Instancia):
     respuesta = llms.generarDefinicion(prompt)
     ## Falta guardar las respuestas
     return respuesta
+
 def evaluarDefinicion(llms,instancia:Instancia, respuesta:str):
     valores = []
     for valor in respuesta.split(','):
