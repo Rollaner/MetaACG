@@ -2,4 +2,5 @@
 *.env
 Data/EHOP_dataset
 definicion_log.csv
-*.pyc
+/__pycache__
+

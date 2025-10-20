@@ -55,7 +55,8 @@ FEEDBACK_INSTRUCTIONS:
 2.FORMAT_AS_KEY_VALUE_PAIRS.EX: "EVAL_HAS_NO_CONSTRAINTS:O(n). Add constraints to check validity at line X."
 3.PINPOINT_SPECIFIC_MATH_FLAWS.EX: "OBJ_CODE_FAIL_LOCAL_OPT:Operator in objective function not aligned with problem def, Suggest operator change in line: X."
 4.SUGGEST_SPECIFIC_IMPROVEMENTS.EX: "R_STR_INADEQUATE:Binary string causing poor exploration. Recommend a permutation in line X."
-5.FOCUS_ON_COMMON_ERRORS: EVAL_HAS_NO_CONSTRAINTS, RESULTS_NOT_CONSISTENT:Objective, Eval and expected result shoulñd be the same. LOGIC_ERROR: Eval does not match the problem constraints. ARITHMETIC_ERROR: Objective function does not math the values given in the problem definition.
+5.FOCUS_ON_COMMON_ERRORS. EX: "EVAL_HAS_NO_CONSTRAINTS, RESULTS_NOT_CONSISTENT:Objective, Eval and expected result should be the same. LOGIC_ERROR: Eval does not match the problem constraints. ARITHMETIC_ERROR: Objective function does not math the values given in the problem definition."
+6.ACCESS_GRANTED_TO str("python tool"): EVALUATE_INDEPENDENTLY. HUMAN_PARSER_RESULTS_APPENDED_AS_TEST_IN_PRODUCTION_ENVIROMENT
 ---
 PROBLEM_RAW:
 $problema
@@ -69,8 +70,33 @@ $objetivo
 EVALUATION_FUNCTION:
 $evaluacion                  
 ---
-RESULTS
+RESULTS_AS_PER_HUMAN_PARSER
 $resultados
+EXPECTED: $esperado
+OUTPUT_FORMAT_STRICT:
+"DEFINITION", "FEEDBACK" """)
+
+feedbackTemplate= Template("""TASK:GENERATE_FEEDBACK 
+FEEDBACK_INSTRUCTIONS:
+1.GENERATE_CRITICAL_FEEDBACK.FOCUS_ON_WEAKNESSES_AND_IMPROVEMENTS.AVOID_POSITIVE_REINFORCEMENT.
+2.FORMAT_AS_KEY_VALUE_PAIRS.EX: "EVAL_HAS_NO_CONSTRAINTS:O(n). Add constraints to check validity at line X."
+3.PINPOINT_SPECIFIC_MATH_FLAWS.EX: "OBJ_CODE_FAIL_LOCAL_OPT:Operator in objective function not aligned with problem def, Suggest operator change in line: X."
+4.SUGGEST_SPECIFIC_IMPROVEMENTS.EX: "R_STR_INADEQUATE:Binary string causing poor exploration. Recommend a permutation in line X."
+5.FOCUS_ON_COMMON_ERRORS. EX: "EVAL_HAS_NO_CONSTRAINTS, RESULTS_NOT_CONSISTENT:Objective, Eval and expected result should be the same. LOGIC_ERROR: Eval does not match the problem constraints. ARITHMETIC_ERROR: Objective function does not math the values given in the problem definition."
+6.ACCESS_GRANTED_TO str("python tool"): EVALUATE_INDEPENDENTLY.
+---
+PROBLEM_RAW:
+$problema
+---
+DEFINITION:
+$definicion
+---                      
+OBJECTIVE_FUNCTION:
+$objetivo
+---
+EVALUATION_FUNCTION:
+$evaluacion                  
+---
 EXPECTED: $esperado
 OUTPUT_FORMAT_STRICT:
 "DEFINITION", "FEEDBACK" """)
@@ -99,5 +125,9 @@ def updatePrompt(problemaSample:str, tipoProblema:str, resultados, esperado, fee
 ## Feedback tiene que estar enfocado en los errores mas comunes de las LLM, Y errores que sabemos que son probables. por ejemplo que la funcion de evaluacion no tenga restricciones o bien que los numeros de la funcion objetivo no encajen con los datos de la instancia
 ## Este tambien nos sirve para clasificar automaticamente los errores que se detecten, en teoria
 def generateFeedbackPrompt(problemaSample:str, definicion:str, objetivo, evaluacion, resultados, esperado):
-    prompt = feedbackTemplate.safe_substitute(problema=problemaSample.iloc[0,1], definicion=definicion,objetivo=objetivo, evaluacion=evaluacion, resultados=resultados, esperado=esperado) 
+    prompt = feedbackTemplate.safe_substitute(problema=problemaSample, definicion=definicion,objetivo=objetivo, evaluacion=evaluacion, resultados=resultados, esperado=esperado) 
+    return prompt
+
+def generateFeedbackPromptNR(problemaSample:str, definicion:str, objetivo, evaluacion, esperado):
+    prompt = feedbackTemplate.safe_substitute(problema=problemaSample, definicion=definicion,objetivo=objetivo, evaluacion=evaluacion, esperado=esperado) 
     return prompt

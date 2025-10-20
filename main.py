@@ -1,6 +1,7 @@
 import ast
 import argparse
 import sys
+import time
 from dotenv import load_dotenv
 import pandas as pd
 import matplotlib as plot
@@ -48,19 +49,8 @@ def main():
     args=parser.parse_args()
     print("Datos inicializados. Iniciando definicion matematica")
     #Problemas en batch
-    datos = []
-    header = ['Instancia', 'Iteracion', 'Respuesta', 'Feedback', 'Resultados']
     if args.batch_def:
-        definirBatch(instancias,llms,datos)
-        csvDefinicion = 'definicion_log.csv'
-        try:
-            with open(csvDefinicion, 'w', newline='', encoding='utf-8') as csvfile:
-                escritor = csv.writer(csvfile)
-                escritor.writerow(header)
-                escritor.writerows(datos)
-        except Exception as e:
-            print("Error de escritura durante el proceso de definicion, no se han guardado los resultados")
-        print("Fin proceso de definicion matematica")
+        definirBatch(instancias,llms)
     else:
     #Problema individual
         instancia:Instancia = instancias.getDatosInstancia("graph_coloring_random_dataset_in_house_9_8")
@@ -75,21 +65,38 @@ def main():
     resultDB.to_csv(resultPath,index=False)
     return 0
 
+#Recalibración de las LLMS
 def reiniciarLLMS():
-    return 0
+    llms = generador()
+    llms.cargarLLMs()
+    return llms
 
-def definirBatch(instancias:DataLoader,llms:generador,datos:any):
-    for instancia in instancias.getAllInstancias():
-        respuesta = definirProblema(llms,instancia)
-        i = 0
-        j = 0
-        datos.append([instancia, i, respuesta, '', ''])
-        for j in range(3):
-            feedback, resultados = evaluarDefinicion(instancia, respuesta)
-            respuesta = refinarDefinicion(instancia,feedback, resultados)
-            print(feedback,respuesta, resultados)
-            datos.append([instancia, i, respuesta, feedback, resultados])
-        i = i + 1
+def definirBatch(instancias:DataLoader,llms:generador):
+    tiempoInicio = time.perf_counter()
+    header = ['Instancia','Traje','Tipo de problema', 'Subtipo de problema', 'Iteracion', 'Respuesta', 'Feedback', 'Resultado esperado', 'tokens', 'tiempo']
+    csvDefinicion = 'definicion_log.csv'
+    i = 0
+    try:
+        with open(csvDefinicion, 'w', newline='', encoding='utf-8') as csvfile:
+                escritor = csv.writer(csvfile)
+                escritor.writerow(header)
+        with open(csvDefinicion, 'a', newline='', encoding='utf-8') as csvfile:
+            escritor = csv.writer(csvfile)
+            for instancia in instancias.getAllInstancias():
+                respuesta = definirProblema(llms,instancia)
+                datos = [instancia.claveInstancia, instancia.problemCostume, instancia.problemType, instancia.problemSubType, i, respuesta.content[0]['text'], '', '', time.perf_counter()-tiempoInicio]
+                escritor.writerow(datos)
+                for j in range(3):
+                    feedback, resultados = evaluarDefinicion(llms,instancia, respuesta.content[0]['text'])
+                    respuesta = refinarDefinicion(llms,instancia,feedback, resultados)
+                    datos = [instancia.claveInstancia, instancia.problemCostume, instancia.problemType, instancia.problemSubType, i, respuesta.content[0]['text'], feedback, resultados, time.perf_counter()-tiempoInicio]         
+                    escritor.writerow(datos)
+                reiniciarLLMS()
+                i = i + 1
+    except Exception as e:
+                print(f"Error de escritura durante el proceso de definicion, no se han guardado los resultados {e}")
+    print("Fin proceso de definicion matematica")
+
 
 
 def definirProblema(llms,instancia:Instancia):
@@ -102,20 +109,17 @@ def definirProblema(llms,instancia:Instancia):
     ## Falta guardar las respuestas
     return respuesta
 
-def evaluarDefinicion(llms,instancia:Instancia, respuesta:str):
+def evaluarDefinicion(llms,instancia:Instancia, respuesta):
     valores = []
     for valor in respuesta.split(','):
         valores.append(valor.strip('"'))
     respuestaDef = valores [1]
     respuestaObj = valores[2]
     respuestaEval = valores[3]
-    MathResultados = probarDefinicion(respuestaObj,respuestaEval, instancia.parsedSolution)
-    prompt =  PromptSamplerDM.generateFeedbackPrompt(instancia.problem,respuestaDef,respuestaObj,respuestaEval,MathResultados,instancia.solutionValue)
+    prompt =  PromptSamplerDM.generateFeedbackPromptNR(instancia.problem,respuestaDef,respuestaObj,respuestaEval,instancia.solutionValue)
     feedback = llms.generarFeedback(prompt)
-    return feedback, MathResultados
+    return feedback, instancia.solutionValue
 
-## Requiere revision y pruebas.
-def probarDefinicion(obj: str, eval: str, parsedSolution: List[Union[int, float]]):
     # Definir entorno de ejecucion
     safe_globals = {
         '__builtins__': None,
@@ -147,22 +151,68 @@ def refinarDefinicion(llms,instancia:Instancia,feedback:str, resultados):
     respuesta = llms.generarDefinicion(prompt)
     return respuesta
 
-def optimizarProblema(problemaDB,componenteDB,resultDB,feedbackDB,seed):
+#Utiliza las DB para guardar las respuestas con versionado. Eso significa que hay que acceder a los archivos y escribir sobre ellos. 
+#Podemos pasar el problema definido en la fase 1 directamente, en vez de sacar uno de la DB. Eso nos deja con dos variantes: seed, y problema predefinido. En ambos casos resultDB, feedbackDB y componenteDB son necesarios
+#actualmente solo esta evaluando 1 componente a la vez, tiene que evaluar sets de componentes. Representacion, Vecindad y Evaluacion
+def optimizarProblemaAleatorio(problemaDB:pd.DataFrame,componenteDB:pd.DataFrame,resultDB: pd.DataFrame,feedbackDB: pd.DataFrame,seed):
     problema = PromptSampler.sampleProblemaDB(problemaDB,seed)
     seedPrompt = PromptSampler.generateSeedPrompt(problema,componenteDB, seed)
+    llms = generador()
+    llms.cargarLLMs()
+    respuestas = []
     iterations = 10
+    respuestaInicial = llms.generarComponentes(seedPrompt)
+    respuesta = respuestaInicial
+    componenteDB.add(respuesta)
     while iterations > 0:
-        newPrompt = PromptSampler.updatePrompt(problema,componenteDB,resultDB, feedbackDB,seed)
+        resultado = evaluarComponentes(respuesta)
+        resultDB.add(resultado)
+        feedbackPrompt = PromptSampler.generateFeedbackPrompt(problema,respuesta,resultado)
+        feedback = llms.generarFeedback(feedbackPrompt) 
+        feedbackDB.add(feedback)
+        newPrompt = PromptSampler.updatePrompt(problema,componenteDB,resultDB,feedback,seed)
+        respuesta = llms.generarComponentes(newPrompt)
+        respuestas.append(respuesta)
+        componenteDB.add(respuesta)
         iterations = iterations - 1
+        if iterations % 3 == 0:
+            llms = reiniciarLLMS()
 
-"Funcion para cargar componentes genericos, requiere sandboxing."
+def optimizarProblemaPredefinido(problema,componenteDB:pd.DataFrame,resultDB: pd.DataFrame,feedbackDB: pd.DataFrame,seed):
+    seedPrompt = PromptSampler.generateSeedPrompt(problema,componenteDB, seed)
+    llms = generador()
+    llms.cargarLLMs()
+    respuestas = []
+    iterations = 10
+    respuestaInicial = llms.generarComponentes(seedPrompt)
+    respuesta = respuestaInicial
+    componenteDB.add(respuesta.content[0]['text'])
+    while iterations > 0:
+        resultado = evaluarComponentes(respuesta.content[0]['text'])
+        resultDB.add(resultado)
+        feedbackPrompt = PromptSampler.generateFeedbackPrompt(problema,respuesta.content[0]['text'],resultado)
+        feedback = llms.generarFeedback(feedbackPrompt) 
+        feedbackDB.add(feedback)
+        newPrompt = PromptSampler.updatePrompt(problema,componenteDB,resultDB,feedback,seed)
+        respuesta = llms.generarComponentes(newPrompt)
+        respuestas.append(respuesta.content[0]['text'])
+        componenteDB.add(respuesta.content[0]['text'])
+        iterations = iterations - 1
+        if iterations % 3 == 0:
+            llms = reiniciarLLMS()
+    return respuestaInicial, respuestas
+
+def evaluarComponentes(respuesta:str):
+    return 0
+
+#Funcion para cargar componentes genericos, requiere sandboxing.
 def cargarComponente(codigo: str):
     nombres = {}
     try:
         componente = ast.literal_eval(codigo,globals(),nombres)
         return componente
     except SyntaxError: 
-        "Si el componente no es una expresion Lamda o representacion simple, se asume que es una funcion multilinea"
+        #Si el componente no es una expresion Lamda o representacion simple, se asume que es una funcion multilinea
         exec(codigo,globals(),nombres)
         for key,value in nombres.items():
             if callable(value):

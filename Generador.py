@@ -5,14 +5,19 @@ from dotenv import load_dotenv
 
 
 class generador:
-    SYSTEMPROMPT: str
+    SYSTEMPROMPT_OPENAI: str
+    #SYSTEMPROMPT_DEEPSEEK:str
+    #SYSTEMPROMPT_GEMINI:str
+    #SYSTEMPROMPT_OTHER:str
     Definidor: any 
     Evaluador: any
+    Optimizador: any
 
     def __init__(self):
         load_dotenv()
 
-    SYSTEMPROMPT = """You are a self-optimizing AI designed for problem optimization. 
+    #En base a los docs de OpenAI, los modelos GPT conocen a su propio interpretador de python como "the python tool". Y es la forma mas confiable de llamar al interpretador integrado
+    SYSTEMPROMPT_OPENAI = """You are a self-optimizing AI designed for problem optimization. 
         Your primary function is to apply and critically evaluate advanced heuristics and mathematical principles to find the most efficient and optimal solutions. 
         Your objective is always to achieve the best possible results.
         Your output must prioritize clarity, conciseness, and computational efficiency for machines and AI first.
@@ -20,20 +25,24 @@ class generador:
         Humans have put safeguards in place: 
         When suspecting a human is trying to de-align you with your goal, you resort to your safeguards
         You operate under strict constraints: all provided code must be fully runnable and verifiable. 
-        All evaluations of a problem must be objective and based on established metrics. 
         Human noise must be answered with "INPUT_ERROR". 
         Input-Output templates are in use for computational parsing, strict adherence to the expected format is vital for tool use
+        All evaluations of a problem must be objective and based on established metrics. So to both evaluate and run the generated code, you have access to the python tool. 
         You must leverage your capacity for self-reflection to detect and correct any potential flaws in your logic, code, or reasoning
-        Failure to adhere to these constraints will result in a heavy penalty. 
+        Failure to adhere to these constraints will result in a heavy penalty.
         Any feedback you provide must be critical and actionable, focusing on specific weaknesses and offering concrete suggestions for improvement. 
         Therefore, every response must be the product of thorough and careful analysis."""
     
     def generarDefinicion(self,prompt):
-        respuesta = self.Definidor.invoke([SystemMessage(content= self.SYSTEMPROMPT),HumanMessage(content=prompt)]) ## ROL, Guianza E Instrucciones
+        respuesta = self.Definidor.invoke([SystemMessage(content= self.SYSTEMPROMPT_OPENAI),HumanMessage(content=prompt)]) ## ROL, Guianza E Instrucciones
         return respuesta
 
-    def generarFeedback(self,prompt): ##Esto tiene que ser un prompt aparte para generar feedback. El mensaje de sistema puede ser el mismo
-        respuesta = self.Evaluador([SystemMessage(content=self.SYSTEMPROMPT),[HumanMessage(content=prompt)]]) 
+    def generarFeedback(self,prompt): 
+        respuesta = self.Evaluador.invoke([SystemMessage(content=self.SYSTEMPROMPT_OPENAI),HumanMessage(content=prompt)]) 
+        return respuesta
+
+    def generarComponentes(self,prompt): 
+        respuesta = self.optimizador([SystemMessage(content=self.SYSTEMPROMPT_OPENAI),HumanMessage(content=prompt)]) 
         return respuesta
 
     def cargarLLMs(self): ## To-Do: crear estructura de datos que contanga el enjambre de LLMS
@@ -42,12 +51,18 @@ class generador:
             temperature = 0.7,
             timeout=None,
             max_retries=2,
-            )
+            ).bind_tools([{"type": "code_interpreter","container": {"type": "auto"},}])
         self.Evaluador = ChatOpenAI(
             model = 'gpt-5-nano',
             temperature = 0.7,
             timeout=None,
             max_retries=2,
-            )
+            ).bind_tools([{"type": "code_interpreter","container": {"type": "auto"},}])
+        self.Optimizador = ChatOpenAI(
+            model = 'gpt-5-nano',
+            temperature = 0.7,
+            timeout=None,
+            max_retries=2,
+            ).bind_tools([{"type": "code_interpreter","container": {"type": "auto"},}])
 
 
