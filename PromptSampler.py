@@ -60,7 +60,6 @@ OUTPUT_FORMAT_STRICT:
 "COMPONENT_VERSION", "FEEDBACK" """)
 
 def sampleComponenteDB(componenteDB, problemaID,seed):
-
     problemSubset = componenteDB[componenteDB['ProblemaID'] == problemaID]
     representaciones = componenteDB.columns[1]
     representacionesPosibles = random.choice(list(problemSubset[representaciones].unique()))

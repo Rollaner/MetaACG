@@ -64,5 +64,3 @@ class generador:
             timeout=None,
             max_retries=2,
             ).bind_tools([{"type": "code_interpreter","container": {"type": "auto"},}])
-
-

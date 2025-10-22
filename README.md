@@ -14,8 +14,8 @@ Por defecto el programa corre en modo "batch". En este modo no se realiza la opt
 Instale las dependencias: 
  - Conda
  - Langchain
-Clone el repositorio con https://github.com/Rollaner/MetaACG.git
-Cree un archivo .env con la api de OpenAi. (OPENAI_API_KEY)
+ - Clone el repositorio con https://github.com/Rollaner/MetaACG.git
+ - Cree un archivo .env con la api de OpenAi. (OPENAI_API_KEY)
 
 ---
 LICENCIA
