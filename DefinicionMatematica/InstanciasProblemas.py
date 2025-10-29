@@ -33,7 +33,7 @@ class DataLoader:
         print(f"Cargadas {len(self.dataStore)} instancias de problemas.")
 
     def procesarDatos(self, tipoProblema: str, tipoDataset: str, path: str):
-        archivosCSV = glob.glob(os.path.join(path, "consolidated*.csv"))
+        archivosCSV = glob.glob(os.path.join(path, "*hard_sample.csv"))
         for csv in archivosCSV:
             print(csv)
             with open(csv, 'r') as file:
@@ -61,7 +61,6 @@ class DataLoader:
                             problem = rawData  
                         self.associarDatos(tipoProblema, tipoDataset, traje, subtipo, path, claveInstancia, problem)
                     except Exception as e:
-                        continue
                         print(f"Error procesando la linea en {csv}: {line} -> {e}")
 
     def associarDatos(self, tipoProblema: str, tipoDataset: str, traje:str, subtipo:str, nombre: str, claveInstancia: str, problem: str):
@@ -85,7 +84,7 @@ class DataLoader:
                 with open(archivoSolucion, 'r') as sf:
                     solutionContent = sf.read()
                 objectiveScore, parsedSolution = self.parsearSolucion(tipoProblema, claveInstancia, solutionContent)
-                key=tipoProblema+'_'+tipoDataset+'_'+claveInstancia
+                key=tipoProblema+'_'+tipoDataset+'_'+claveInstancia+'_'+traje+'_'+subtipo
                 record = Instancia(
                     problemType=tipoProblema, #Tipo del problema: TSP, GC, o Knapsack
                     datasetType=tipoDataset, #Tipo del dataset del problema (Hard o Random)

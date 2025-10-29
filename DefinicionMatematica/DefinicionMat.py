@@ -3,7 +3,8 @@ from .InstanciasProblemas import Instancia,DataLoader
 from Generador import generador
 from .PromptSamplerDM import *
 import time
-import csv
+import sys
+import json
 
 #Recalibración de las LLMS
 def reiniciarLLMS():
@@ -13,35 +14,24 @@ def reiniciarLLMS():
 
 def definirBatch(instancias:DataLoader,llms:generador, path, tipo:str):
     tiempoInicio = time.perf_counter()
-    header = ['Instancia','Traje','Tipo de problema', 'Subtipo de problema', 'Iteracion', 'Respuesta', 'Feedback', 'Resultado esperado', 'tokens', 'tiempo']
-    csvDefinicion = path
+    header = ['Instancia','Traje','Tipo de problema', 'Subtipo de problema', 'Iteracion', 'Respuesta', 'Feedback', 'Resultado esperado', 'tiempo']
     i = 0
-    try:
-        with open(csvDefinicion, 'w', newline='', encoding='utf-8') as csvfile:
-                escritor = csv.writer(csvfile)
-                escritor.writerow(header)
-        with open(csvDefinicion, 'a', newline='', encoding='utf-8') as csvfile:
-            escritor = csv.writer(csvfile)
-            for instancia in instancias.getAllInstancias():
-                if instancia.problemType != tipo:
-                    continue
-                respuesta = definirProblema(llms,instancia)
-                datos = [instancia.claveInstancia, instancia.problemCostume, instancia.problemType, instancia.problemSubType, i, respuesta.content[0]['text'], '', '', time.perf_counter()-tiempoInicio]
-                escritor.writerow(datos)
-                print(instancia.claveInstancia, respuesta.content[0]['text'])
-                for j in range(2):
-                    feedback, resultados = evaluarDefinicion(llms,instancia, respuesta.content[0]['text'])
-                    datos = [instancia.claveInstancia, instancia.problemCostume, instancia.problemType, instancia.problemSubType, j, respuesta.content[0]['text'], feedback, resultados, time.perf_counter()-tiempoInicio]         
-                    respuesta = refinarDefinicion(llms,instancia,feedback, resultados)
-                    escritor.writerow(datos)
-                    print(instancia.claveInstancia, respuesta.content[0]['text'])
-                datos = [instancia.claveInstancia, instancia.problemCostume, instancia.problemType, instancia.problemSubType, i, respuesta.content[0]['text'], '', '', time.perf_counter()-tiempoInicio]
-                escritor.writerow(datos)
-                print(instancia.claveInstancia, respuesta.content[0]['text'])
-                reiniciarLLMS()
-                i = i + 1
-    except Exception as e:
-                print(f"Error de escritura durante el proceso de definicion, no se han guardado los resultados {e}")
+    for instancia in instancias.getAllInstancias():
+        respuesta = definirProblema(llms,instancia)
+        datos = [instancia.claveInstancia, instancia.problemCostume, instancia.problemType, instancia.problemSubType, i, respuesta.content[0]['text'], 'None', 'None', time.perf_counter()-tiempoInicio]
+        guardarResultados(datos, header, path)
+        print(instancia.claveInstancia, respuesta.content[0]['text'])
+        for j in range(2):
+            feedback, resultados = evaluarDefinicion(llms,instancia, respuesta.content[0]['text'])
+            datos = [instancia.claveInstancia, instancia.problemCostume, instancia.problemType, instancia.problemSubType, j, respuesta.content[0]['text'], feedback.content[0]['text'], resultados, time.perf_counter()-tiempoInicio]         
+            respuesta = refinarDefinicion(llms,instancia,feedback, resultados)
+            guardarResultados(datos, header, path)
+            print(instancia.claveInstancia, respuesta.content[0]['text'])
+            datos = [instancia.claveInstancia, instancia.problemCostume, instancia.problemType, instancia.problemSubType, i, respuesta.content[0]['text'], 'None', 'None', time.perf_counter()-tiempoInicio]
+            guardarResultados(datos, header, path)
+            print(instancia.claveInstancia, respuesta.content[0]['text'])
+            reiniciarLLMS()
+            i = i + 1
     print("Fin proceso de definicion matematica")
 
 def definirProblema(llms,instancia:Instancia):
@@ -73,17 +63,33 @@ def refinarDefinicion(llms,instancia:Instancia,feedback:str, resultados):
 def definirIndividual(instancias:DataLoader,llms:generador,path, ID:str):
     tiempoInicio = time.perf_counter()
     instancia:Instancia = instancias.getDatosInstancia(ID)
+    header = ['Instancia','Traje','Tipo de problema', 'Subtipo de problema', 'Iteracion', 'Respuesta', 'Feedback', 'Resultado esperado', 'tiempo']
     respuesta = definirProblema(llms,instancia)
-    csvDefinicion = path
-    with open(csvDefinicion, 'a', newline='', encoding='utf-8') as csvfile:
-            escritor = csv.writer(csvfile)
-            datos = [instancia.claveInstancia, instancia.problemCostume, instancia.problemType, instancia.problemSubType, "i", respuesta.content[0]['text'], '', '', time.perf_counter()-tiempoInicio]
-            escritor.writerow(datos)
-            for j in range(2):
-                feedback, resultados = evaluarDefinicion(llms,instancia, respuesta.content[0]['text'])
-                datos = [instancia.claveInstancia, instancia.problemCostume, instancia.problemType, instancia.problemSubType, "i"+j, respuesta.content[0]['text'], feedback, resultados, time.perf_counter()-tiempoInicio]         
-                respuesta = refinarDefinicion(llms,instancia,feedback, resultados)
-                escritor.writerow(datos)
-            datos = [instancia.claveInstancia, instancia.problemCostume, instancia.problemType, instancia.problemSubType, "i", respuesta.content[0]['text'], '', '', time.perf_counter()-tiempoInicio]
-            escritor.writerow(datos)
+    datos = [instancia.claveInstancia, instancia.problemCostume, instancia.problemType, instancia.problemSubType, "i", respuesta.content[0]['text'], 'None', 'None', time.perf_counter()-tiempoInicio]
+    guardarResultados(datos, header, path)
+    for j in range(2):
+        feedback, resultados = evaluarDefinicion(llms,instancia, respuesta.content[0]['text'])
+        datos = [instancia.claveInstancia, instancia.problemCostume, instancia.problemType, instancia.problemSubType, "i"+j, respuesta.content[0]['text'], feedback, resultados, time.perf_counter()-tiempoInicio]         
+        respuesta = refinarDefinicion(llms,instancia,feedback, resultados)
+        guardarResultados(datos, header, path)
+    datos = [instancia.claveInstancia, instancia.problemCostume, instancia.problemType, instancia.problemSubType, "i", respuesta.content[0]['text'], 'None', 'None', time.perf_counter()-tiempoInicio]
+    guardarResultados(datos, header, path)
     return respuesta, feedback, resultados
+
+def guardarResultados(datos, header, path):
+    num_encabezados = len(header)
+    num_datos = len(datos)
+    if num_datos != num_encabezados:
+        print(
+            f"Error: La cantidad de datos ({num_datos}) no encajan con el numero de encabezados ({num_encabezados})."
+            f"El registro NO fue guardado. Use 'None' explícito para campos faltantes."
+            ,file=sys.stderr)
+        return
+    record_dict = dict(zip(header, datos))
+    json_line = json.dumps(record_dict, ensure_ascii=False)
+
+    try:
+        with open(path, 'a', encoding='utf-8') as f:
+            f.write(json_line + '\n')
+    except Exception as e:
+        print(f"Ocurrio un error al momento de escribir en el archivo: {e}", file=sys.stderr)

@@ -7,7 +7,7 @@ import pandas as pd
 import matplotlib as plot
 import numpy as np
 import os
-import PromptSampler
+import Optimizacion.PromptSamplerOP as PromptSamplerOP
 import csv
 import math
 from typing import List, Union
@@ -31,10 +31,10 @@ def main():
     pathDB= os.path.join(os.path.dirname(__file__), 'Data')
     #Fin modificacion para pruebas
     os.makedirs(pathDB, exist_ok=True)
-    componentesPath = os.path.join(pathDB, 'componentes.csv')
-    problemasPath = os.path.join(pathDB, 'problemas.csv')
-    feedbackPath = os.path.join(pathDB,'feedback.csv')
-    resultPath = os.path.join(pathDB,'resultados.csv')
+    componentesPath = os.path.join(pathDB, 'componentes.jsonl')
+    problemasPath = os.path.join(pathDB, 'problemas.jsonl')
+    feedbackPath = os.path.join(pathDB,'feedback.jsonl')
+    resultPath = os.path.join(pathDB,'resultados.jsonl')
     instancias = DataLoader()
     instancias.cargarDatos()
     llms = generador()
@@ -64,8 +64,8 @@ def main():
 #Podemos pasar el problema definido en la fase 1 directamente, en vez de sacar uno de la DB. Eso nos deja con dos variantes: seed, y problema predefinido. En ambos casos resultDB, feedbackDB y componenteDB son necesarios
 #actualmente solo esta evaluando 1 componente a la vez, tiene que evaluar sets de componentes. Representacion, Vecindad y Evaluacion
 def optimizarProblemaAleatorio(problemaDB:pd.DataFrame,componenteDB:pd.DataFrame,resultDB: pd.DataFrame,feedbackDB: pd.DataFrame,seed):
-    problema = PromptSampler.sampleProblemaDB(problemaDB,seed)
-    seedPrompt = PromptSampler.generateSeedPrompt(problema,componenteDB, seed)
+    problema = PromptSamplerOP.sampleProblemaDB(problemaDB,seed)
+    seedPrompt = PromptSamplerOP.generateSeedPrompt(problema,componenteDB, seed)
     llms = generador()
     llms.cargarLLMs()
     respuestas = []
@@ -76,10 +76,10 @@ def optimizarProblemaAleatorio(problemaDB:pd.DataFrame,componenteDB:pd.DataFrame
     while iterations > 0:
         resultado = evaluarComponentes(respuesta)
         resultDB.add(resultado)
-        feedbackPrompt = PromptSampler.generateFeedbackPrompt(problema,respuesta,resultado)
+        feedbackPrompt = PromptSamplerOP.generateFeedbackPrompt(problema,respuesta,resultado)
         feedback = llms.generarFeedback(feedbackPrompt) 
         feedbackDB.add(feedback)
-        newPrompt = PromptSampler.updatePrompt(problema,componenteDB,resultDB,feedback,seed)
+        newPrompt = PromptSamplerOP.updatePrompt(problema,componenteDB,resultDB,feedback,seed)
         respuesta = llms.generarComponentes(newPrompt)
         respuestas.append(respuesta)
         componenteDB.add(respuesta)
@@ -88,7 +88,7 @@ def optimizarProblemaAleatorio(problemaDB:pd.DataFrame,componenteDB:pd.DataFrame
             llms = DefinicionMat.reiniciarLLMS()
 
 def optimizarProblemaPredefinido(problema,componenteDB:pd.DataFrame,resultDB: pd.DataFrame,feedbackDB: pd.DataFrame,seed):
-    seedPrompt = PromptSampler.generateSeedPrompt(problema,componenteDB, seed)
+    seedPrompt = PromptSamplerOP.generateSeedPrompt(problema,componenteDB, seed)
     llms = generador()
     llms.cargarLLMs()
     respuestas = []
@@ -99,10 +99,10 @@ def optimizarProblemaPredefinido(problema,componenteDB:pd.DataFrame,resultDB: pd
     while iterations > 0:
         resultado = evaluarComponentes(respuesta.content[0]['text'])
         resultDB.add(resultado)
-        feedbackPrompt = PromptSampler.generateFeedbackPrompt(problema,respuesta.content[0]['text'],resultado)
+        feedbackPrompt = PromptSamplerOP.generateFeedbackPrompt(problema,respuesta.content[0]['text'],resultado)
         feedback = llms.generarFeedback(feedbackPrompt) 
         feedbackDB.add(feedback)
-        newPrompt = PromptSampler.updatePrompt(problema,componenteDB,resultDB,feedback,seed)
+        newPrompt = PromptSamplerOP.updatePrompt(problema,componenteDB,resultDB,feedback,seed)
         respuesta = llms.generarComponentes(newPrompt)
         respuestas.append(respuesta.content[0]['text'])
         componenteDB.add(respuesta.content[0]['text'])

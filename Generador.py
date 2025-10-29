@@ -42,25 +42,39 @@ class generador:
         return respuesta
 
     def generarComponentes(self,prompt): 
-        respuesta = self.optimizador([SystemMessage(content=self.SYSTEMPROMPT_OPENAI),HumanMessage(content=prompt)]) 
+        respuesta = self.Optimizador([SystemMessage(content=self.SYSTEMPROMPT_OPENAI),HumanMessage(content=prompt)]) 
+        return respuesta
+
+    def generarFeedbackComponentes(self,prompt): 
+        respuesta = self.EvaluadorOptimizador([SystemMessage(content=self.SYSTEMPROMPT_OPENAI),HumanMessage(content=prompt)]) 
         return respuesta
 
     def cargarLLMs(self): ## To-Do: crear estructura de datos que contanga el enjambre de LLMS
         self.Definidor = ChatOpenAI(
-            model = 'gpt-5-nano',
+            model = 'gpt-5',
             temperature = 0.7,
             timeout=None,
             max_retries=2,
+            reasoning_effort="low"
             ).bind_tools([{"type": "code_interpreter","container": {"type": "auto"},}])
         self.Evaluador = ChatOpenAI(
-            model = 'gpt-5-nano',
+            model = 'gpt-5',
             temperature = 0.7,
             timeout=None,
             max_retries=2,
+            reasoning_effort="low"
             ).bind_tools([{"type": "code_interpreter","container": {"type": "auto"},}])
         self.Optimizador = ChatOpenAI(
-            model = 'gpt-5-nano',
+            model = 'gpt-5',
             temperature = 0.7,
             timeout=None,
             max_retries=2,
+            reasoning_effort="low"
+            ).bind_tools([{"type": "code_interpreter","container": {"type": "auto"},}])
+        self.EvaluadorOptimizador = ChatOpenAI(
+            model = 'gpt-5',
+            temperature = 0.7,
+            timeout=None,
+            max_retries=2,
+            reasoning_effort="low"
             ).bind_tools([{"type": "code_interpreter","container": {"type": "auto"},}])
