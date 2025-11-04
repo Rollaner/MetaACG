@@ -1,5 +1,5 @@
 # Modulo integrador, contiene los loops de la arquitectura general
-from .InstanciasProblemas import Instancia,DataLoader
+from Instancias import Instancia,DataLoader
 from Generador import generador
 from .PromptSamplerDM import *
 import time
@@ -14,24 +14,19 @@ def reiniciarLLMS():
 
 def definirBatch(instancias:DataLoader,llms:generador, path, tipo:str):
     tiempoInicio = time.perf_counter()
-    header = ['Instancia','Traje','Tipo de problema', 'Subtipo de problema', 'Iteracion', 'Respuesta', 'Feedback', 'Resultado esperado', 'tiempo']
-    i = 0
+    header = ['Instancia','Traje','Tipo de problema', 'Subtipo de problema', 'Iteracion', 'Respuesta', 'Feedback', 'Resultado esperado','Valor Objetivo', 'tiempo']
     for instancia in instancias.getAllInstancias():
         respuesta = definirProblema(llms,instancia)
-        datos = [instancia.claveInstancia, instancia.problemCostume, instancia.problemType, instancia.problemSubType, i, respuesta.content[0]['text'], 'None', 'None', time.perf_counter()-tiempoInicio]
+        datos = [instancia.claveInstancia, instancia.problemCostume, instancia.problemType, instancia.problemSubType, 0, respuesta.content[0]['text'], 'None',instancia.parsedSolution, instancia.objectiveScore, time.perf_counter()-tiempoInicio]
         guardarResultados(datos, header, path)
         print(instancia.claveInstancia, respuesta.content[0]['text'])
-        for j in range(2):
-            feedback, resultados = evaluarDefinicion(llms,instancia, respuesta.content[0]['text'])
-            datos = [instancia.claveInstancia, instancia.problemCostume, instancia.problemType, instancia.problemSubType, j, respuesta.content[0]['text'], feedback.content[0]['text'], resultados, time.perf_counter()-tiempoInicio]         
-            respuesta = refinarDefinicion(llms,instancia,feedback, resultados)
+        for i in range(2):
+            feedback = evaluarDefinicion(llms,instancia, respuesta.content[0]['text'])
+            datos = [instancia.claveInstancia, instancia.problemCostume, instancia.problemType, instancia.problemSubType, i+1, respuesta.content[0]['text'], feedback.content[0]['text'],instancia.parsedSolution, instancia.objectiveScore, time.perf_counter()-tiempoInicio]         
+            respuesta = refinarDefinicion(llms,instancia,feedback,instancia.objectiveScore)
             guardarResultados(datos, header, path)
             print(instancia.claveInstancia, respuesta.content[0]['text'])
-            datos = [instancia.claveInstancia, instancia.problemCostume, instancia.problemType, instancia.problemSubType, i, respuesta.content[0]['text'], 'None', 'None', time.perf_counter()-tiempoInicio]
-            guardarResultados(datos, header, path)
-            print(instancia.claveInstancia, respuesta.content[0]['text'])
-            reiniciarLLMS()
-            i = i + 1
+        reiniciarLLMS()
     print("Fin proceso de definicion matematica")
 
 def definirProblema(llms,instancia:Instancia):
@@ -51,19 +46,19 @@ def evaluarDefinicion(llms,instancia:Instancia, respuesta):
     respuestaDef = valores [1]
     respuestaObj = valores[2]
     respuestaEval = valores[3]
-    prompt = generateFeedbackPromptNR(instancia.problem,respuestaDef,respuestaObj,respuestaEval,instancia.solutionValue)
+    prompt = generateFeedbackPromptNR(instancia.problem,respuestaDef,respuestaObj,respuestaEval,instancia.parsedSolution,instancia.objectiveScore)
     feedback = llms.generarFeedback(prompt)
-    return feedback, instancia.solutionValue
+    return feedback
 
 def refinarDefinicion(llms,instancia:Instancia,feedback:str, resultados):
-    prompt = updatePrompt(instancia.problem, instancia.problemType,resultados,instancia.solutionValue,feedback)
+    prompt = updatePrompt(instancia.problem, instancia.problemType,resultados,instancia.objectiveScore,feedback)
     respuesta = llms.generarDefinicion(prompt)
     return respuesta
 
 def definirIndividual(instancias:DataLoader,llms:generador,path, ID:str):
     tiempoInicio = time.perf_counter()
     instancia:Instancia = instancias.getDatosInstancia(ID)
-    header = ['Instancia','Traje','Tipo de problema', 'Subtipo de problema', 'Iteracion', 'Respuesta', 'Feedback', 'Resultado esperado', 'tiempo']
+    header = ['Instancia','Traje','Tipo de problema', 'Subtipo de problema', 'Iteracion', 'Respuesta', 'Feedback', 'Resultado esperado', 'Valor Objetivo', 'tiempo']
     respuesta = definirProblema(llms,instancia)
     datos = [instancia.claveInstancia, instancia.problemCostume, instancia.problemType, instancia.problemSubType, "i", respuesta.content[0]['text'], 'None', 'None', time.perf_counter()-tiempoInicio]
     guardarResultados(datos, header, path)

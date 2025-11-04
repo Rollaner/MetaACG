@@ -42,11 +42,11 @@ class generador:
         return respuesta
 
     def generarComponentes(self,prompt): 
-        respuesta = self.Optimizador([SystemMessage(content=self.SYSTEMPROMPT_OPENAI),HumanMessage(content=prompt)]) 
+        respuesta = self.Optimizador.invoke([SystemMessage(content=self.SYSTEMPROMPT_OPENAI),HumanMessage(content=prompt)]) 
         return respuesta
 
     def generarFeedbackComponentes(self,prompt): 
-        respuesta = self.EvaluadorOptimizador([SystemMessage(content=self.SYSTEMPROMPT_OPENAI),HumanMessage(content=prompt)]) 
+        respuesta = self.EvaluadorOptimizador.invoke([SystemMessage(content=self.SYSTEMPROMPT_OPENAI),HumanMessage(content=prompt)]) 
         return respuesta
 
     def cargarLLMs(self): ## To-Do: crear estructura de datos que contanga el enjambre de LLMS

@@ -3,6 +3,7 @@ import os
 import glob
 from dataclasses import dataclass
 from typing import List, Tuple, Union
+import pandas as pd
 
 @dataclass
 class Instancia:
@@ -15,22 +16,38 @@ class Instancia:
     instanceContent: str #Valores numericos de la instancia como tal: AKA, los valores de EHOP en bruto
     solutionContent: str #Valores de la solucion optima
     parsedSolution: Union[List[int], List[float], List[List[int]], None] # Placeholder, solucion en fomato utilizable por codigo
-    solutionValue: int #Valor esperado de la funcion objetivo
+    objectiveScore: int #Valor esperado de la funcion objetivo
+
 
 class DataLoader:
-    def __init__(self, basePath: str = "Data/EHOP_dataset/"):
+    def __init__(self, basePath: str = "Data/", basePathExt: str = "Data/EHOP_dataset/"):
         self.basePath = basePath
+        self.basePathExt = basePathExt
         self.dataStore: dict[str, Instancia] = {}
 
-    def cargarDatos(self):
+    def cargarProblemas(self):
         problemas = ["graph_coloring", "traveling_salesman", "knapsack"]
         datasets = ["hard_dataset", "random_dataset"]
         for tipoProblema in problemas:
             for tipoDataset in datasets:
-                CSV = os.path.join(self.basePath, tipoProblema, tipoDataset)
+                CSV = os.path.join(self.basePathExt, tipoProblema, tipoDataset)
                 self.procesarDatos(tipoProblema, tipoDataset, CSV)
         
         print(f"Cargadas {len(self.dataStore)} instancias de problemas.")
+
+    def cargarComponentes(self):
+        problemas = ["graph_coloring", "traveling_salesman", "knapsack"]
+        datasets = ["hard_dataset", "random_dataset"]
+        for tipoProblema in problemas:
+            for tipoDataset in datasets:
+                JSONL = os.path.join(self.basePath, tipoProblema, tipoDataset)
+                self.procesarComponentes(tipoProblema, tipoDataset, JSONL)
+        print(f"Cargadas {len(self.dataStore)} instancias de problemas.")
+
+    def procesarComponentes(self, path: str):
+        archivoJSONL = glob.glob(os.path.join(path, "problemas.jsonl"))
+        problemaDB = pd.read_json(archivoJSONL,lines=True)
+        return problemaDB[::5]
 
     def procesarDatos(self, tipoProblema: str, tipoDataset: str, path: str):
         archivosCSV = glob.glob(os.path.join(path, "*hard_sample.csv"))
@@ -95,7 +112,7 @@ class DataLoader:
                     instanceContent=instanceContent, #Valores numericos de la instancia como tal: AKA, los valores de EHOP en bruto
                     solutionContent=solutionContent, #Valores de la solucion optima
                     parsedSolution=parsedSolution, # Placeholder, solucion en fomato utilizable por codigo
-                    solutionValue=objectiveScore  #Valor esperado de la funcion objetivo
+                    objectiveScore=objectiveScore  #Valor esperado de la funcion objetivo
                 )
                 self.dataStore[key] = record
             except FileNotFoundError:

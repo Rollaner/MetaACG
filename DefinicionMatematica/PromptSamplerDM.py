@@ -6,7 +6,8 @@ PROBLEM_DEF:
 ---
 $problema
 ---
-OUTPUT_FORMAT_STRICT:"MATH_DEF","SOL_TYPE","OBJ_CODE","EVAL_CODE"
+OUTPUT_FORMAT_STRICT:JSON.MUST_CONTAIN_4_KEYS.
+OUTPUT_JSON_SCHEMA:{"MATH_DEF": "...", "SOL_TYPE": "...", "OBJ_CODE": "...", "EVAL_CODE": "..."}
 MATH_DEF_DEF:CONCISE_MATH_LOGIC_DEF_OBJ_CONSTRAINTS.USE_STANDARD_NOTATION.
 SOL_TYPE_DEF:STRING.SOL_REPRESENTATION_TYPE.OPTIONS=INDEX_LIST,BINARY_STRING,NODE_SEQUENCE.
 OBJ_CODE_DEF:PYTHON_FUNC.NAME=objective_function.ARGS=1(solution).RET_NUM_VALUE.SIG=def objective_function(solution):
@@ -27,7 +28,8 @@ PROBLEM_DEF:
 ---
 $problema
 ---
-OUTPUT_FORMAT_STRICT:"MATH_DEF","SOL_TYPE","OBJ_CODE","EVAL_CODE"
+OUTPUT_FORMAT_STRICT:JSON.MUST_CONTAIN_4_KEYS.
+OUTPUT_JSON_SCHEMA:{"MATH_DEF": "...", "SOL_TYPE": "...", "OBJ_CODE": "...", "EVAL_CODE": "..."}
 MATH_DEF_DEF:CONCISE_MATH_LOGIC_DEF_OBJ_CONSTRAINTS.USE_STANDARD_NOTATION.
 SOL_TYPE_DEF:STRING.SOL_REPRESENTATION_TYPE.OPTIONS=INDEX_LIST,BINARY_STRING,NODE_SEQUENCE.
 OBJ_CODE_DEF:PYTHON_FUNC.NAME=objective_function.ARGS=1(solution).RET_NUM_VALUE.SIG=def objective_function(solution):
@@ -97,6 +99,7 @@ $objetivo
 EVALUATION_FUNCTION:
 $evaluacion                  
 ---
+INPUT: $solucionParseada
 EXPECTED: $esperado
 OUTPUT_FORMAT_STRICT:
 "DEFINITION", "FEEDBACK" """)
@@ -128,6 +131,6 @@ def generateFeedbackPrompt(problemaSample:str, definicion:str, objetivo, evaluac
     prompt = feedbackTemplate.safe_substitute(problema=problemaSample, definicion=definicion,objetivo=objetivo, evaluacion=evaluacion, resultados=resultados, esperado=esperado) 
     return prompt
 
-def generateFeedbackPromptNR(problemaSample:str, definicion:str, objetivo, evaluacion, esperado):
-    prompt = feedbackTemplate.safe_substitute(problema=problemaSample, definicion=definicion,objetivo=objetivo, evaluacion=evaluacion, esperado=esperado) 
+def generateFeedbackPromptNR(problemaSample:str, definicion:str, objetivo, evaluacion,solucionParseada, esperado):
+    prompt = feedbackTemplate.safe_substitute(problema=problemaSample, definicion=definicion,objetivo=objetivo, evaluacion=evaluacion, solucionParseada=solucionParseada, esperado=esperado) 
     return prompt
