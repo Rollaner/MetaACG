@@ -1,21 +1,19 @@
 import random
 
-def ILS(solucionActual, mejorSolucion, mejorCosto, funcionVecindad, funcionPerturbacion, funcionEvaluacion, iteraciones, tasaRechazo):
+def ILS(solucionActual, mejorSolucion, mejorCosto, funcionVecindad, funcionPerturbacion, funcionEvaluacion, iteraciones, tasaAceptacion):
     i = 0
-    mejorSolucion = solucionActual
-    mejorCosto = funcionEvaluacion(mejorSolucion)
     solucionActual = funcionVecindad(solucionActual)
+    costoActual = funcionEvaluacion(solucionActual)
     while i < iteraciones:
-        solucionActual = funcionPerturbacion(solucionActual)
-        solucionMejorada = funcionVecindad(solucionActual)
+        solucionPerturbada = funcionPerturbacion(solucionActual)
+        solucionMejorada = funcionVecindad(solucionPerturbada)
         costoMejorado = funcionEvaluacion(solucionMejorada)
-        
         if costoMejorado < mejorCosto:
             mejorSolucion = solucionMejorada
             mejorCosto = costoMejorado
         else: 
-            if(random.random() > tasaRechazo):
+            if(random.random() < tasaAceptacion):
                 continue
             solucionActual = solucionMejorada
         i = i +1
-    return solucionActual, mejorSolucion, mejorCosto
+    return solucionActual,costoActual, mejorSolucion, mejorCosto

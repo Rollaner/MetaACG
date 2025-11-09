@@ -6,10 +6,12 @@ def SA(solucionActual,mejor, mejorCosto, funcionVencindad, funcionEvaluacion, te
     while(temp > minTemp):
         vecino = funcionVencindad(solucionActual)
         costoVecino = funcionEvaluacion(vecino)
+        costoActual = funcionEvaluacion(solucionActual)
         delta = costoVecino - funcionEvaluacion(solucionActual)
+        if costoVecino < mejorCosto:
+            mejor = vecino
+            mejorCosto = costoVecino
         if delta < 0 or random.random() < math.exp(-delta/temp):
             solucionActual = vecino
-        if costoVecino < mejorCosto:
-            mejor, mejorCosto = vecino, costoVecino
         temp *= factorEnfriamiento
-    return solucionActual, mejor, mejorCosto
+    return solucionActual, costoActual, mejor, mejorCosto

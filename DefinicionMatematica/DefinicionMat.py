@@ -7,7 +7,7 @@ import sys
 import json
 
 #Recalibración de las LLMS
-def reiniciarLLMS():
+def reiniciarLLMSDef():
     llms = generador()
     llms.cargarLLMs()
     return llms
@@ -26,7 +26,7 @@ def definirBatch(instancias:DataLoader,llms:generador, path, tipo:str):
             respuesta = refinarDefinicion(llms,instancia,feedback,instancia.objectiveScore)
             guardarResultados(datos, header, path)
             print(instancia.claveInstancia, respuesta.content[0]['text'])
-        reiniciarLLMS()
+        reiniciarLLMSDef()
     print("Fin proceso de definicion matematica")
 
 def definirProblema(llms,instancia:Instancia):

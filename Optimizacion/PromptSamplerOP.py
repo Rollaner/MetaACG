@@ -9,12 +9,12 @@ PROBLEM_DEF:
 ---
 $problema
 ---
-OUTPUT_FORMAT_STRICT:JSON.MUST_CONTAIN_4_KEYS.
-OUTPUT_JSON_SCHEMA:{"REPRESENTATION": "...", "EVAL_CODE": "...", "NB_CODE": "...", "PERTURB_CODE": "..."}
+OUTPUT_FORMAT_STRICT:JSON.MUST_CONTAIN_5_KEYS.
+OUTPUT_JSON_SCHEMA:{"REPRESENTATION": "...", "EVAL_CODE": "...", "NB_CODE": "...", "PERTURB_CODE": "...", "SAMPLE_SOL": "..."}
 R_STR_DESC:STRING.SOL_ENCODE.EX:BIN_STR,PERM_LIST,TREE_STR.
 
-# The function signatures below are strictly required to run in the target local solver functions (ILS and SA).
-# Note: The EVAL_CODE signature must match the argument order of 'funcionEvaluacion'.
+TARGET_HEURISTIC_SA= "def SA(currentSolution,best, best_score, generate_neighbour, evaluate_solution, temp, minTemp, cooling_factor)".
+HEURISTICS_VALUE_BEST_AS_LESSER_COST_USE_NEGATIVES_FOR_MAXIMIZATION_PROBLEMS
 
 NB_CODE_DEF:PYTHON_FUNC.NAME=generate_neighbour.ARGS=1(solution).OP_NEIGHBOR_SOLUTION.SIG=def generate_neighbour(solution):
 PERTURB_CODE_DEF:PYTHON_FUNC.NAME=perturb_solution.ARGS=1(solution).OP_PERTURBED_SOLUTION.SIG=def perturb_solution(solution):
@@ -22,15 +22,17 @@ EVAL_CODE_DEF:PYTHON_FUNC.NAME=evaluate_solution.ARGS=1(solution).RET_NUM_FITNES
 
 CRITICAL_INSTRUCTIONS:
 1.CODE_SYNTAX_CORRECT_FUNC_SELF_CONTAINED.
-2.NO_ADD_TEXT_EXPLANATION_FORMAT_OUTSIDE_CSV.
+2.NO_ADD_TEXT_OR_EXPLANATION_OUTSIDE_THE_STRICT_OUTPUT_JSON.
 3.SOL_ARG_TYPE_MATCH_R_STR.
 4.NB_CODE_SIG_MUST_BE_def generate_neighbour(solution):
 5.PERTURB_CODE_SIG_MUST_BE_def perturb_solution(solution):
 6.EVAL_CODE_SIG_MUST_BE_def evaluate_solution(solution):
-
+7.SAMPLE_SOL_MATCH_R_STR.
+8.CODE_KEYS_MUST_INCLUDE_IMPORTS.
+9.NO_GLOBAL_VAR_REF_OR_DEF_PROBLEM_DATA_MUST_BE_INTERNAL.
+10.EXTERNAL_DATA_MUST_BE_PASSED_AS_ARG_DATA_MUST_BE_ENCODED_OR_EMBEDDED.
+                        
 INSPIRATIONS:
-"Solution format":
-$Sol
 "Objective function":
 $Obj
 "Evaluation Function":
@@ -42,12 +44,12 @@ PROBLEM_DEF:
 ---
 $problema
 ---
-OUTPUT_FORMAT_STRICT:JSON.MUST_CONTAIN_4_KEYS.
-OUTPUT_JSON_SCHEMA:{"REPRESENTATION": "...", "EVAL_CODE": "...", "NB_CODE": "...", "PERTURB_CODE": "..."}
+OUTPUT_FORMAT_STRICT:JSON.MUST_CONTAIN_5_KEYS.
+OUTPUT_JSON_SCHEMA:{"REPRESENTATION": "...", "EVAL_CODE": "...", "NB_CODE": "...", "PERTURB_CODE": "...",, "SAMPLE_SOL": "..."}
 R_STR_DESC:STRING.SOL_ENCODE.EX:BIN_STR,PERM_LIST,TREE_STR.
 
-# The function signatures below are strictly required to run in the target local solver functions (ILS and SA).
-# Note: The EVAL_CODE signature must match the argument order of 'funcionEvaluacion'.
+TARGET_HEURISTIC_SA= "def SA(currentSolution,best, best_score, generate_neighbour, evaluate_solution, temp, minTemp,cooling_factor)".
+HEURISTICS_VALUE_BEST_AS_LESSER_COST_USE_NEGATIVES_FOR_MAXIMIZATION_PROBLEMS
 
 NB_CODE_DEF:PYTHON_FUNC.NAME=generate_neighbour.ARGS=1(solution).OP_NEIGHBOR_SOLUTION.SIG=def generate_neighbour(solution):
 PERTURB_CODE_DEF:PYTHON_FUNC.NAME=perturb_solution.ARGS=1(solution).OP_PERTURBED_SOLUTION.SIG=def perturb_solution(solution):
@@ -55,23 +57,31 @@ EVAL_CODE_DEF:PYTHON_FUNC.NAME=evaluate_solution.ARGS=1(solution).RET_NUM_FITNES
 
 CRITICAL_INSTRUCTIONS:
 1.CODE_SYNTAX_CORRECT_FUNC_SELF_CONTAINED.
-2.NO_ADD_TEXT_EXPLANATION_FORMAT_OUTSIDE_CSV.
+2.NO_ADD_TEXT_OR_EXPLANATION_OUTSIDE_THE_STRICT_OUTPUT_JSON.
 3.SOL_ARG_TYPE_MATCH_R_STR.
 4.NB_CODE_SIG_MUST_BE_def generate_neighbour(solution):
 5.PERTURB_CODE_SIG_MUST_BE_def perturb_solution(solution):
 6.EVAL_CODE_SIG_MUST_BE_def evaluate_solution(solution):
-
+7.SAMPLE_SOL_MATCH_R_STR
+8.CODE_KEYS_MUST_INCLUDE_IMPORTS.
+9.NO_GLOBAL_VAR_REF_OR_DEF_PROBLEM_DATA_MUST_BE_INTERNAL.
+10.EXTERNAL_DATA_MUST_BE_PASSED_AS_ARG_DATA_MUST_BE_ENCODED_OR_EMBEDDED.
+                         
 INSPIRATIONS:
-"Solution format":
-$Sol
-"Objective function":
-$Obj
+"Representation":
+$Rep
 "Evaluation Function":
-$Eval           
-RESULTS
-$resultados
+$Eval
+"Neigbour Function":
+$NB    
+"Perturbation Function:"
+$Perturb
+"Sample Solution":
+$SampleSol   
+RESULTS_FORMAT "{current, currentScore, best, bestScore}"
+$Resultados
 FEEDBACK:
-$feedback
+$Feedback
 """)
 
 feedbackTemplate= Template("""TASK:GENERATE_FEEDBACK 
@@ -91,69 +101,111 @@ $Rep
 $Eval
 "Neigbour Function":
 $NB    
+"Perturbation Function:"
+$Perturb
+"Sample Solution":
+$SampleSol
 RESULTS
-$resultados
+Simmulated_Annealing
+$resultadosSA
+Iterated_Local_Search
+$resultadosILS
+Taboo_Search
+$resultadosTS
+KNOWN SOLUTION
+$knownSol
+EXPECTED SCORE FROM KNOWN SOLUTION
+$knownScore
 OUTPUT_FORMAT_STRICT:
 "COMPONENT_VERSION", "FEEDBACK" """)
 
-def sampleComponenteDB(componenteDB, problemaID,seed):
-    problemSubset = componenteDB[componenteDB['ProblemaID'] == problemaID]
-    representaciones = componenteDB.columns[1]
-    representacionesPosibles = random.choice(list(problemSubset[representaciones].unique()))
-    matches = problemSubset[problemSubset[representaciones] == representacionesPosibles]
-    if len(matches) == 0:
-        return matches  # or return None / empty DF / some sentinel
-    tamaño = min(5, len(matches))
-    return matches.sample(n=tamaño, random_state=seed)
-
-def sampleFeedbackDB(feedbackDB, problemaID, componentSample): ## La logica es la misma de momento, se separan las funciones en caso de que se necesite modificar a futuro
-    feedbackSubset = feedbackDB[feedbackDB['ProblemaID'] == problemaID]
-    versionesComponente = componentSample.iloc[:, 4]
-    feedback = feedbackSubset[feedbackSubset.iloc[:,1].isin(versionesComponente)]
-    return feedback
-
-def sampleResultadoDB(resultadoDB, problemaID, componentSample): ## To-Do revisar que la sintaxis este correcta
-    resultadoSubset = resultadoDB[resultadoDB['ProblemaID'] == problemaID]
-    versionesComponente = componentSample.iloc[:, 4]
-    resultados = resultadoSubset[resultadoSubset.iloc[:,1].isin(versionesComponente)]
-    return resultados
 
 def sampleProblemaDB(problemaDB,seed):
     return problemaDB.sample(n=1, random_state=seed) 
-
-def combinarComponentes(db):
-    ComponenteVecindad = db.iloc[:,2].astype(str).unique().tolist()
-    ComponenteEvaluacion = db.iloc[:,3].astype(str).unique().tolist()
-    combinaciones = list(itertools.product(ComponenteVecindad,ComponenteEvaluacion))
-    return combinaciones
 
 def generarStrings(dataframe):
     if 'Text' in dataframe.columns:
         return  "\n".join(dataframe['Text'].astype(str).tolist())
     else: return f"{len(dataframe)} items found."
 
-def generateSeedPrompt(problemaSample:pd.DataFrame,seed):
-    random.seed(seed)
+def generateSeedPrompt(problemaSample:pd.DataFrame):
     problemaID = problemaSample.Instancia.iloc[0]
     inspiraciones=json.loads(problemaSample.Respuesta.iloc[0])
-    prompt = templateSeed.safe_substitute(problema=inspiraciones['MATH_DEF'], Sol=inspiraciones['SOL_TYPE'],Obj=inspiraciones['OBJ_CODE'], Eval = inspiraciones['EVAL_CODE']) 
-    return problemaID, prompt
+    knownSol = problemaSample['Resultado esperado']
+    knownObj = problemaSample['Valor Objetivo']
+    prompt = templateSeed.safe_substitute(
+        problema=inspiraciones['MATH_DEF'], 
+        Sol=inspiraciones['SOL_TYPE'],
+        Obj=inspiraciones['OBJ_CODE'], 
+        Eval = inspiraciones['EVAL_CODE']
+    ) 
+    return problemaID, inspiraciones['MATH_DEF'], knownSol, knownObj, prompt
+#Updatea el prompt, assume una sola fila por version. 
 
-def updatePrompt(problemaSample, componenteDB, resultDB, feedbackDB, seed): ## podriamos optimizar po medio de almacenar un cache de las variables que se vuelven a calcular
-    random.seed(seed)
-    problemaID = problemaSample.iloc[0,0]
-    componentSample = sampleComponenteDB(componenteDB, problemaID,seed)
-    assert componentSample.iloc[:, 0].nunique() <= 1, "Multiples problemas diferentes seleccionados"
-    assert componentSample.iloc[:, 1].nunique() <= 1, "Multiples representaciones differentes seleccionadas"
-    resultSample = sampleResultadoDB(resultDB, problemaID, componentSample)
-    feedbackSample = sampleFeedbackDB(feedbackDB, problemaID, componentSample)
-    resultados = generarStrings(resultSample)
-    feedback = generarStrings(feedbackSample) 
-    combinaciones = combinarComponentes(componentSample)
-    inspiraciones = ", ".join(f"{v} - {e}" for v, e in combinaciones)
-    prompt = templateUpdate.safe_substitute(problema=inspiraciones['MATH_DEF'], Sol=inspiraciones['SOL_TYPE'],Obj=inspiraciones['OBJ_CODE'], Eval = inspiraciones['EVAL_CODE'], resultados=resultados, feedback=feedback) 
+def updatePromptOS(defProblema, componentes, resultados, feedback):
+    prompt = templateUpdate.safe_substitute(
+        problema = defProblema,
+        Rep=componentes['REPRESENTATION'],
+        Eval=componentes['EVAL_CODE'], 
+        NB=componentes['NB_CODE'],
+        Perturb=componentes['PERTURB_CODE'], 
+        Resultados=resultados,
+        Feedback = feedback
+    )
     return prompt
+# Este requiere que existan las DB de antemano. 
+#(Para hacer mix and match se tiene que mezclar antes de que se haga la evaluacion y feedback, con la version siendo dependentiente de la iteracion)
+#En consecuencia las versiones son enteros en el rango [0:Iteraciones]
+def retornarCoincidentes(df:pd.DataFrame, problemaID, version):
+    filaCoincidente = df[
+        (df['ID_Problema'] == problemaID) &
+        (df['Version'] == version)
+    ]
+    if filaCoincidente.empty:
+        raise ValueError(f"No component set found for Problema ID: {problemaID} and Version: {version}")
+    return filaCoincidente.iloc[0]
+
+#Funcion para hacer mix and match. Debe llamarse antes de hacer una evaluacion. Se genera feedback con los componentes mezclados y los resultados de la evalucion
+def sampleComponenteDB(componenteDB, problemaID,version,seed):
+    subsetProblema = componenteDB[componenteDB['ID_Problema'] == problemaID]
+    if subsetProblema.empty:
+        return pd.DataFrame()
+    random.seed(seed)
+    try:
+        representaciones = subsetProblema['Representacion'].unique()
+        representacionEscogida = random.choice(representaciones)
+    except IndexError:
+        return pd.DataFrame()
+    subsetCompatible = subsetProblema[subsetProblema['Representacion'] == representacionEscogida]
+    try:
+        eval = random.choice(subsetCompatible['Evaluacion'].unique())
+        vecindad = random.choice(subsetCompatible['Vecindad'].unique())
+        perturbacion = random.choice(subsetCompatible['Perturbacion'].unique())
+    except IndexError:
+        return pd.DataFrame()
+    datosComponentes = {
+        'ID_Problema': problemaID,
+        'Representacion': representacionEscogida,
+        'Evaluacion': eval,
+        'Vecindad': vecindad,
+        'Perturbacion': perturbacion,
+        'Version': version 
+    }
+    return pd.DataFrame([datosComponentes])
+
 ## Feedback tiene que estar enfocado en un solo set de componentes a la vez. El ultimo que fue generado
-def generateFeedbackPrompt(problemaSample, componente, resultados):
-    prompt = feedbackTemplate.safe_substitute(problema=problemaSample.iloc[0,1], componente=componente, resultados=resultados) 
+def generateFeedbackPrompt(defProblema, componentes, resultadosSA, resultadosILS, resultadosTS, knownSol, knownObj):
+    prompt = feedbackTemplate.safe_substitute(
+        problema=defProblema, 
+        Rep=componentes['REPRESENTATION'],
+        Eval=componentes['EVAL_CODE'], 
+        NB=componentes['NB_CODE'],
+        perturb=componentes['PERTURB_CODE'], 
+        SampleSol=componentes['SAMPLE_SOL'], 
+        resultadosSA=resultadosSA,
+        resultadosILS=resultadosILS, 
+        resultadosTS=resultadosTS, 
+        knownSol=knownSol, 
+        knownScore=knownObj
+    ) 
     return prompt
