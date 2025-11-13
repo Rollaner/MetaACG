@@ -4,7 +4,7 @@ import math
 
 def SA(solucionActual,mejor, mejorCosto, funcionVencindad, funcionEvaluacion, temp, minTemp, factorEnfriamiento):
     while(temp > minTemp):
-        vecino = funcionVencindad(solucionActual)
+        vecino, _ = funcionVencindad(solucionActual)
         costoVecino = funcionEvaluacion(vecino)
         costoActual = funcionEvaluacion(solucionActual)
         delta = costoVecino - funcionEvaluacion(solucionActual)

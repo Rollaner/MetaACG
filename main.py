@@ -57,11 +57,12 @@ def main():
         else:
             componenteDB = pd.DataFrame(columns=['ID_Problema', 'Representacion', 'Evaluacion', 'Vecindad', 'Perturbacion','Version'])
             feedbackDB = pd.DataFrame(columns=['ID_Problema', 'Representacion', 'Componente','Version', 'Feedback'])
-            resultDB = pd.DataFrame(columns=['ID_Problema', 'Representacion', 'Evaluacion', 'Vecindad', 'Perturbacion', 'Resultados','Solucion','Valor Optimo', 'Metaheuristica'])
-        optimizarProblemaAleatorio(problemaDB, componenteDB,resultDB,feedbackDB, semilla, iteraciones)
-        componenteDB.to_json(componentesPath,orient='records',lines=True)
-        feedbackDB.to_json(feedbackPath,orient='records',lines=True)
-        resultDB.to_json(resultPath,orient='records',lines=True)
+            resultDB = pd.DataFrame(columns=['ID_Problema', 'Representacion', 'Evaluacion', 'Vecindad', 'Perturbacion', 'Resultados','Solucion','Valor Optimo', 'Metaheuristica', 'Tiempo'])
+        for tuplaProblema in problemaDB.itertuples(index=False):    
+            componenteDB, feedbackDB, resultDB = optimizarProblemaPredefinido(tuplaProblema, componenteDB,resultDB,feedbackDB, iteraciones)
+            componenteDB.to_json(componentesPath,orient='records',lines=True)
+            feedbackDB.to_json(feedbackPath,orient='records',lines=True)
+            resultDB.to_json(resultPath,orient='records',lines=True)
         return 0
     #Problemas en batch
     if args.batch_def:
@@ -85,7 +86,11 @@ def main():
 #actualmente solo esta evaluando 1 componente a la vez, tiene que evaluar sets de componentes. Representacion, Vecindad y Evaluacion
 def optimizarProblemaAleatorio(problemaDB:pd.DataFrame,componenteDB:pd.DataFrame,resultDB: pd.DataFrame,feedbackDB: pd.DataFrame,semilla, iteraciones):
         rawProblema = PromptSamplerOP.sampleProblemaDB(problemaDB,semilla)
-        problemaID, defProblema, solucion, objetivo, seedPrompt = PromptSamplerOP.generateSeedPrompt(rawProblema)
+        componenteDB, feedbackDB, resultDB = optimizarProblemaPredefinido(rawProblema, componenteDB, resultDB, feedbackDB, iteraciones)
+        return componenteDB, feedbackDB, resultDB
+
+def optimizarProblemaPredefinido(problema,componenteDB:pd.DataFrame,resultDB: pd.DataFrame,feedbackDB: pd.DataFrame, iteraciones):
+        problemaID, defProblema, solucion, objetivo, seedPrompt = PromptSamplerOP.generateSeedPrompt(problema)
         print(problemaID, solucion, objetivo)
         llms = generador()
         llms.cargarLLMs()
@@ -97,15 +102,15 @@ def optimizarProblemaAleatorio(problemaDB:pd.DataFrame,componenteDB:pd.DataFrame
         feedbacks = []
         i = 0
         while i < iteraciones:
-            resultadoSA = evaluarComponentesSA(componentes)
-            resultadoILS = evaluarComponentesILS(componentes)
-            resultadoTS = evaluarComponentesTS(componentes)
+            resultadoSA, tiempoSA = cronometrarFuncion(evaluarComponentesSA ,componentes)
+            resultadoILS, tiempoILS = cronometrarFuncion(evaluarComponentesILS, componentes)
+            resultadoTS, tiempoTS = cronometrarFuncion(evaluarComponentesTS, componentes)
             print(resultadoSA)
             print(resultadoILS)
             print(resultadoTS)
-            resultDB = guardarResultado(problemaID,resultDB, componentes['REPRESENTATION'],componentes['EVAL_CODE'],componentes['NB_CODE'],componentes['PERTURB_CODE'],resultadoSA,solucion, objetivo, "SA")
-            resultDB = guardarResultado(problemaID,resultDB, componentes['REPRESENTATION'],componentes['EVAL_CODE'],componentes['NB_CODE'],componentes['PERTURB_CODE'],resultadoILS,solucion, objetivo, "ILS")
-            resultDB = guardarResultado(problemaID,resultDB, componentes['REPRESENTATION'],componentes['EVAL_CODE'],componentes['NB_CODE'],componentes['PERTURB_CODE'],resultadoTS,solucion, objetivo, "TS")
+            resultDB = guardarResultado(problemaID,resultDB, componentes['REPRESENTATION'],componentes['EVAL_CODE'],componentes['NB_CODE'],componentes['PERTURB_CODE'],resultadoSA,solucion, objetivo, "SA", tiempoSA)
+            resultDB = guardarResultado(problemaID,resultDB, componentes['REPRESENTATION'],componentes['EVAL_CODE'],componentes['NB_CODE'],componentes['PERTURB_CODE'],resultadoILS,solucion, objetivo, "ILS", tiempoILS)
+            resultDB = guardarResultado(problemaID,resultDB, componentes['REPRESENTATION'],componentes['EVAL_CODE'],componentes['NB_CODE'],componentes['PERTURB_CODE'],resultadoTS,solucion, objetivo, "TS", tiempoTS)
             feedbackPrompt = PromptSamplerOP.generateFeedbackPrompt(defProblema,componentes,resultadoSA, resultadoILS,resultadoTS, solucion, objetivo) #Necesita trabajar con el nuevo sistema de JSON
             feedback = llms.generarFeedback(feedbackPrompt) 
             feedbacks.append(feedback)
@@ -124,30 +129,16 @@ def optimizarProblemaAleatorio(problemaDB:pd.DataFrame,componenteDB:pd.DataFrame
             if i % 3 == 0:
                 llms = DefinicionMat.reiniciarLLMSDef()
                 print("Maquinas re-instanciadas")
-
-def optimizarProblemaPredefinido(problema,componenteDB:pd.DataFrame,resultDB: pd.DataFrame,feedbackDB: pd.DataFrame,seed):
-    seedPrompt = PromptSamplerOP.generateSeedPrompt(problema,componenteDB, seed)
-    llms = generador()
-    llms.cargarLLMs()
-    respuestas = []
-    iterations = 10
-    respuestaInicial = llms.generarComponentes(seedPrompt)
-    respuesta = respuestaInicial
-    componenteDB.add(respuesta.content[0]['text'])
-    while iterations > 0:
-        resultado = evaluarComponentesSA(respuesta.content[0]['text'])
-        resultDB.add(resultado)
-        feedbackPrompt = PromptSamplerOP.generateFeedbackPrompt(problema,respuesta.content[0]['text'],resultado)
-        feedback = llms.generarFeedback(feedbackPrompt) 
-        feedbackDB.add(feedback)
-        newPrompt = PromptSamplerOP.updatePrompt(problema,componenteDB,resultDB,feedback,seed)
-        respuesta = llms.generarComponentes(newPrompt)
-        respuestas.append(respuesta.content[0]['text'])
-        componenteDB.add(respuesta.content[0]['text'])
-        iterations = iterations - 1
-        if iterations % 3 == 0:
-            llms = DefinicionMat.reiniciarLLMSDef()
-    return respuestaInicial, respuestas
+        resultadoSA, tiempoSA = cronometrarFuncion(evaluarComponentesSA ,componentes)
+        resultadoILS, tiempoILS = cronometrarFuncion(evaluarComponentesILS, componentes)
+        resultadoTS, tiempoTS = cronometrarFuncion(evaluarComponentesTS, componentes)
+        print(resultadoSA)
+        print(resultadoILS)
+        print(resultadoTS)
+        resultDB = guardarResultado(problemaID,resultDB, componentes['REPRESENTATION'],componentes['EVAL_CODE'],componentes['NB_CODE'],componentes['PERTURB_CODE'],resultadoSA,solucion, objetivo, "SA", tiempoSA)
+        resultDB = guardarResultado(problemaID,resultDB, componentes['REPRESENTATION'],componentes['EVAL_CODE'],componentes['NB_CODE'],componentes['PERTURB_CODE'],resultadoILS,solucion, objetivo, "ILS", tiempoILS)
+        resultDB = guardarResultado(problemaID,resultDB, componentes['REPRESENTATION'],componentes['EVAL_CODE'],componentes['NB_CODE'],componentes['PERTURB_CODE'],resultadoTS,solucion, objetivo, "TS", tiempoTS)        
+        return componenteDB, feedbackDB, resultDB
 
 def evaluarComponentesSA(componentes):
     #Guardar excepciones como string, para retornarlas como debug
@@ -252,7 +243,15 @@ def cargarComponente(codigo: str):
             return value
     raise ValueError(f"No se encontró una función (callable) en el código cargado con exec().")
 
-def guardarResultado(problemaID,resultDB, representacion, evaluacion, vecindad, perturbacion, resultados,mejorSolucion, optimo, MH):
+def cronometrarFuncion(func: Callable, *args, **kwargs) -> tuple[float, any]:
+    inicio = time.perf_counter()
+    resultado = func(*args, **kwargs)
+    fin = time.perf_counter()
+    tiempo = fin - inicio
+    return resultado, tiempo
+
+
+def guardarResultado(problemaID,resultDB, representacion, evaluacion, vecindad, perturbacion, resultados,mejorSolucion, optimo, MH, tiempo):
     datosResultado = {
         'ID_Problema': problemaID,
         'Representacion': representacion,
@@ -262,7 +261,8 @@ def guardarResultado(problemaID,resultDB, representacion, evaluacion, vecindad, 
         'Resultados': resultados,
         'Solucion': mejorSolucion,
         'Valor Optimo': optimo,
-        'Metaheuristica': MH
+        'Metaheuristica': MH,
+        'Tiempo': tiempo
     }
     dfAux = pd.DataFrame([datosResultado])
     resultDBMod = pd.concat([resultDB,dfAux], ignore_index=True)

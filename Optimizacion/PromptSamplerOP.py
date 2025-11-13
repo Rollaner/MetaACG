@@ -16,7 +16,7 @@ R_STR_DESC:STRING.SOL_ENCODE.EX:BIN_STR,PERM_LIST,TREE_STR.
 TARGET_HEURISTIC_SA= "def SA(currentSolution,best, best_score, generate_neighbour, evaluate_solution, temp, minTemp, cooling_factor)".
 HEURISTICS_VALUE_BEST_AS_LESSER_COST_USE_NEGATIVES_FOR_MAXIMIZATION_PROBLEMS
 
-NB_CODE_DEF:PYTHON_FUNC.NAME=generate_neighbour.ARGS=1(solution).OP_NEIGHBOR_SOLUTION.SIG=def generate_neighbour(solution):
+NB_CODE_DEF:PYTHON_FUNC.NAME=generate_neighbour.ARGS=1(solution).OP_NEIGHBOR_SOLUTION.SIG=def generate_neighbour(solution) -> ("NB_Type", "Movement_Type"):
 PERTURB_CODE_DEF:PYTHON_FUNC.NAME=perturb_solution.ARGS=1(solution).OP_PERTURBED_SOLUTION.SIG=def perturb_solution(solution):
 EVAL_CODE_DEF:PYTHON_FUNC.NAME=evaluate_solution.ARGS=1(solution).RET_NUM_FITNESS.SIG=def evaluate_solution(solution):
 
@@ -24,7 +24,7 @@ CRITICAL_INSTRUCTIONS:
 1.CODE_SYNTAX_CORRECT_FUNC_SELF_CONTAINED.
 2.NO_ADD_TEXT_OR_EXPLANATION_OUTSIDE_THE_STRICT_OUTPUT_JSON.
 3.SOL_ARG_TYPE_MATCH_R_STR.
-4.NB_CODE_SIG_MUST_BE_def generate_neighbour(solution):
+4.NB_CODE_SIG_MUST_BE_def generate_neighbour(solution) -> ("NB_Type", "Movement_Type"):
 5.PERTURB_CODE_SIG_MUST_BE_def perturb_solution(solution):
 6.EVAL_CODE_SIG_MUST_BE_def evaluate_solution(solution):
 7.SAMPLE_SOL_MATCH_R_STR.
@@ -51,7 +51,7 @@ R_STR_DESC:STRING.SOL_ENCODE.EX:BIN_STR,PERM_LIST,TREE_STR.
 TARGET_HEURISTIC_SA= "def SA(currentSolution,best, best_score, generate_neighbour, evaluate_solution, temp, minTemp,cooling_factor)".
 HEURISTICS_VALUE_BEST_AS_LESSER_COST_USE_NEGATIVES_FOR_MAXIMIZATION_PROBLEMS
 
-NB_CODE_DEF:PYTHON_FUNC.NAME=generate_neighbour.ARGS=1(solution).OP_NEIGHBOR_SOLUTION.SIG=def generate_neighbour(solution):
+NB_CODE_DEF:PYTHON_FUNC.NAME=generate_neighbour.ARGS=1(solution).OP_NEIGHBOR_SOLUTION.SIG=def generate_neighbour(solution) -> ("NB_Type", "Movement_Type"):
 PERTURB_CODE_DEF:PYTHON_FUNC.NAME=perturb_solution.ARGS=1(solution).OP_PERTURBED_SOLUTION.SIG=def perturb_solution(solution):
 EVAL_CODE_DEF:PYTHON_FUNC.NAME=evaluate_solution.ARGS=1(solution).RET_NUM_FITNESS.SIG=def evaluate_solution(solution):
 
@@ -59,7 +59,7 @@ CRITICAL_INSTRUCTIONS:
 1.CODE_SYNTAX_CORRECT_FUNC_SELF_CONTAINED.
 2.NO_ADD_TEXT_OR_EXPLANATION_OUTSIDE_THE_STRICT_OUTPUT_JSON.
 3.SOL_ARG_TYPE_MATCH_R_STR.
-4.NB_CODE_SIG_MUST_BE_def generate_neighbour(solution):
+4.NB_CODE_SIG_MUST_BE_def generate_neighbour(solution) -> ("NB_Type", "Movement_Type"):
 5.PERTURB_CODE_SIG_MUST_BE_def perturb_solution(solution):
 6.EVAL_CODE_SIG_MUST_BE_def evaluate_solution(solution):
 7.SAMPLE_SOL_MATCH_R_STR
@@ -86,6 +86,7 @@ $Feedback
 
 feedbackTemplate= Template("""TASK:GENERATE_FEEDBACK 
 FEEDBACK_INSTRUCTIONS:
+0.TARGET_HEURISTIC_FUNCTIONALITY_HAS_PRIORITY_OVER_OTHER_IMPROVEMENTS
 1.GENERATE_CRITICAL_FEEDBACK.FOCUS_ON_WEAKNESSES_AND_IMPROVEMENTS.AVOID_POSITIVE_REINFORCEMENT.
 2.FORMAT_AS_KEY_VALUE_PAIRS.EX: "E_CODE_PERF:O(n) for each step. Consider incremental evaluation."
 3.PINPOINT_SPECIFIC_COMPONENT_FLAWS.EX: "NB_CODE_FAIL_LOCAL_OPT:Operator too simple, suggest 2-opt."
@@ -94,6 +95,8 @@ PROBLEM_DEF:
 ---
 $problema
 ---
+TARGET_HEURISTIC_GENERAL_SIGNATURE= "def Heuristic(currentSolution,best, best_score, generate_neighbour, evaluate_solution, perturb_solution, other_params)".
+HEURISTICS_VALUE_BEST_AS_LESSER_COST_USE_NEGATIVES_FOR_MAXIMIZATION_PROBLEMS                           
 COMPONENTS:
 "Representation":
 $Rep
@@ -129,10 +132,16 @@ def generarStrings(dataframe):
     else: return f"{len(dataframe)} items found."
 
 def generateSeedPrompt(problemaSample:pd.DataFrame):
-    problemaID = problemaSample.Instancia.iloc[0]
-    inspiraciones=json.loads(problemaSample.Respuesta.iloc[0])
-    knownSol = problemaSample['Resultado esperado']
-    knownObj = problemaSample['Valor Objetivo']
+    if isinstance(problemaSample, pd.DataFrame):
+        problemaID = problemaSample.Instancia.iloc[0]
+        inspiraciones=json.loads(problemaSample.Respuesta.iloc[0])
+        knownSol = problemaSample['Resultado esperado'].iloc[0]
+        knownObj = problemaSample['Valor Objetivo'].iloc[0]
+    else:
+        problemaID = problemaSample.Instancia
+        inspiraciones=json.loads(problemaSample.Respuesta)
+        knownSol = problemaSample[7] #Resultado_esperado
+        knownObj = problemaSample[8] #Valor_Objetivo
     prompt = templateSeed.safe_substitute(
         problema=inspiraciones['MATH_DEF'], 
         Sol=inspiraciones['SOL_TYPE'],
