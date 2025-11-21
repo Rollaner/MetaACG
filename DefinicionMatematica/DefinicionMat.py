@@ -17,7 +17,13 @@ def definirBatch(instancias:DataLoader,llms:generador, path, tipo:str):
     header = ['Instancia','Traje','Tipo de problema', 'Subtipo de problema', 'Iteracion', 'Respuesta', 'Feedback', 'Resultado esperado','Valor Objetivo', 'tiempo']
     for instancia in instancias.getAllInstancias():
         respuesta = definirProblema(llms,instancia)
-        datos = [instancia.claveInstancia, instancia.problemCostume, instancia.problemType, instancia.problemSubType, 0, respuesta.content[0]['text'], 'None',instancia.parsedSolution, instancia.objectiveScore, time.perf_counter()-tiempoInicio]
+        if instancia.problemType == "Knapsack" and instancia.problemSubType == "Inverted":
+            mejorSolucion = instancia.parsedSolution
+            valorOptimo = instancia.objectiveScore
+        else:
+            mejorSolucion = instancia.parsedSolution
+            valorOptimo = instancia.objectiveScore
+        datos = [instancia.claveInstancia, instancia.problemCostume, instancia.problemType, instancia.problemSubType, 0, respuesta.content[0]['text'], 'None',mejorSolucion, valorOptimo, time.perf_counter()-tiempoInicio]
         guardarResultados(datos, header, path)
         print(instancia.claveInstancia, respuesta.content[0]['text'])
         for i in range(2):
@@ -27,6 +33,14 @@ def definirBatch(instancias:DataLoader,llms:generador, path, tipo:str):
             guardarResultados(datos, header, path)
             print(instancia.claveInstancia, respuesta.content[0]['text'])
         reiniciarLLMSDef()
+    print("Fin proceso de definicion matematica")
+
+def prepararSinDefinir(instancias:DataLoader,llms:generador, path, tipo:str):
+    tiempoInicio = time.perf_counter()
+    header = ['Instancia','Traje','Tipo de problema', 'Subtipo de problema', 'Iteracion', 'Respuesta', 'Feedback', 'Resultado esperado','Valor Objetivo', 'tiempo']
+    for instancia in instancias.getAllInstancias():
+        datos = [instancia.claveInstancia, instancia.problemCostume, instancia.problemType, instancia.problemSubType, 0, instancia.problem, 'None',instancia.parsedSolution, instancia.objectiveScore, time.perf_counter()-tiempoInicio]
+        guardarResultados(datos, header, path)
     print("Fin proceso de definicion matematica")
 
 def definirProblema(llms,instancia:Instancia):

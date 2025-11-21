@@ -4,6 +4,7 @@ def ILS(solucionActual, mejorSolucion, mejorCosto, funcionVecindad, funcionPertu
     i = 0
     solucionActual, _ = funcionVecindad(solucionActual)
     costoActual = funcionEvaluacion(solucionActual)
+    mejorCosto = costoActual
     while i < iteraciones:
         solucionPerturbada = funcionPerturbacion(solucionActual)
         solucionMejorada, _  = funcionVecindad(solucionPerturbada)

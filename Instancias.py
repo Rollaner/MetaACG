@@ -160,9 +160,11 @@ class DataLoader:
             print(f"Error parseando la solucion de {claveInstancia}. El contenido era: '{solutionContent.strip()}'. Error: {e}")
         return None
 
-    def parsearK(self, claveInstancia: str, solutionContent: str) -> Tuple[int, List[int]] | None:
+    def parsearK(self, claveInstancia: str, solutionContent: str, Invertido=False) -> Tuple[int, List[int]] | None:
         stringValores = solutionContent.replace('\n', ' ').replace(',', ' ',).split()
         if not stringValores:
+            return None
+        if Invertido:
             return None
         try:
             valoresInt = [int(v) for v in stringValores]

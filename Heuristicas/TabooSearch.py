@@ -1,6 +1,7 @@
 def TS(solucionActual,mejorSolucion,mejorCosto,funcionVencindad, funcionEvaluacion,iteraciones, sizeListaTabu, duracionTabu):
     i = 0
     listaTabu = {}
+    mejorCosto = funcionEvaluacion(solucionActual)
     while i < iteraciones:
         vecindad = funcionVencindad(solucionActual)
         mejorVecinoIteracion = None
