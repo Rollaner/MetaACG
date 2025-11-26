@@ -9,7 +9,7 @@ from matplotlib.patches import Patch
 from matplotlib.ticker import MaxNLocator
 import math
 
-def graficos_por_pipeline(Fallos, desempeñoPorSolver, metricasRendimiento,
+def graficos_por_pipeline(Fallos, desempeñoPorSolver, metricasRendimiento,totalExperimentos,
                           pipeline: str,
                           output_dir: str = "figuras"):
     os.makedirs(output_dir, exist_ok=True)
@@ -69,9 +69,9 @@ def graficos_por_pipeline(Fallos, desempeñoPorSolver, metricasRendimiento,
     # ------------------------------------------------------------------
     if not desempeñoPorSolver.empty:
         labels = desempeñoPorSolver["Metaheuristica"].tolist()
-        totalExpermentos = desempeñoPorSolver["TotalExperimentos"].to_numpy().astype(float)
         exitos = desempeñoPorSolver["TotalExitos"].to_numpy().astype(float)
-        fallos = totalExpermentos - exitos
+        fallosPorSolver = desempeñoPorSolver["TotalFallos"].to_numpy().astype(float)
+        fallos = totalExperimentos - exitos
         x = np.arange(len(labels))
         coloresExito = [paletaTriadica[i % len(paletaTriadica)]
                          for i in range(len(labels))]
@@ -105,17 +105,17 @@ def graficos_por_pipeline(Fallos, desempeñoPorSolver, metricasRendimiento,
         ax.set_ylabel("Número de ejecuciones")
         ax.set_title(f"Desempeño por solver (éxitos vs fallos) ({pipeline})")
 
-        max_val = np.max(totalExpermentos)
+        max_val = np.max(totalExperimentos)
         configurar_grid_barras(ax, max_val, es_proporcion=False)
         with np.errstate(divide="ignore", invalid="ignore"):
-            tasa_exito = np.where(totalExpermentos > 0, exitos / totalExpermentos * 100, 0.0)
+            tasa_exito = np.where(totalExperimentos > 0, exitos / totalExperimentos * 100, 0.0)
         legend_success_items = [
             f"{name}: {int(e)} éxitos ({rate:.1f}%)"
             for name, e, rate in zip(labels, exitos, tasa_exito)
         ]
 
-        total_fallos = int(fallos.sum())
-        total_porcentaje_fallos = fallos.sum() / totalExpermentos.sum() * 100
+        total_fallos = int(fallosPorSolver.sum())
+        total_porcentaje_fallos = fallosPorSolver.sum() / totalExperimentos * 100
         legend_fail_item = f"Fallos totales: {total_fallos} ({total_porcentaje_fallos:.1f}%)"
         from matplotlib.patches import Patch
         legend_handles = []
