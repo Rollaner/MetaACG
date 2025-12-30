@@ -1,7 +1,7 @@
 # Modulo integrador, contiene los loops de la arquitectura general
 from Instancias import Instancia,DataLoader
 from Generador import generador
-from .PromptSamplerDM import *
+from .PromptSamplerP import *
 import time
 import sys
 import json
@@ -17,9 +17,8 @@ def definirBatch(instancias:DataLoader,llms:generador, path, tipo:str):
     header = ['Instancia','Traje','Tipo de problema', 'Subtipo de problema', 'Iteracion', 'Respuesta', 'Feedback', 'Resultado esperado','Valor Objetivo', 'tiempo']
     for instancia in instancias.getAllInstancias():
         respuesta = definirProblema(llms,instancia)
-        if instancia.problemType == "Knapsack" and instancia.problemSubType == "Inverted":
-            mejorSolucion = instancia.parsedSolution
-            valorOptimo = instancia.objectiveScore
+        if instancia.problemSubType == "Inverted":
+            continue
         else:
             mejorSolucion = instancia.parsedSolution
             valorOptimo = instancia.objectiveScore
