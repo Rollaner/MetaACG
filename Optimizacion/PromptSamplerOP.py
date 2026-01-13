@@ -174,15 +174,15 @@ $Feedback
 #2.FORMAT_AS_KEY_VALUE_PAIRS.EX: "E_CODE_PERF:O(n) for each step. Consider incremental evaluation."
 #3.PINPOINT_SPECIFIC_COMPONENT_FLAWS.EX: "NB_CODE_FAIL_LOCAL_OPT:Operator too simple, suggest 2-opt."
 #4.SUGGEST_SPECIFIC_IMPROVEMENTS.EX: "R_STR_INADEQUATE:Binary string causing poor exploration. Recommend a permutation."
-feedbackTemplate= Template("""TASK:GENERATE_FEEDBACK 
+feedbackTemplate= Template("""TASK:GENERATE_FEEDBACK_FOR_COMPONENT_REFINEMENT 
 FEEDBACK_INSTRUCTIONS:
 0.NON_FUNCTIONAL_CODE_FORBIDDEN_LOCAL_SOLVER_ERRROS_MUST_BE_CORRECTED_FIRST
 1.GENERATE_CRITICAL_FEEDBACK.FOCUS_ON_WEAKNESSES_AND_IMPROVEMENTS.AVOID_POSITIVE_REINFORCEMENT.
 2.FORMAT_AS_KEY_VALUE_PAIRS.EX: "E_CODE_PARSE_ERROR: Solution is string, while E_CODE expects an array"
-3.PINPOINT_SPECIFIC_COMPONENT_FLAWS_SUGGEST_SPECIFIC_IMPROVEMENTS_TO_FLAWS
+3.PINPOINT_SPECIFIC_COMPONENT_FLAWS_SUGGEST_SPECIFIC_IMPROVEMENTS_TO_FLAWS. MAXIMUM_4_ITEMS_ALLOWED_PRIORIZE_COMPATIBILITY_OF_COMPONENTS_WITH_LOCAL_SOLVER
 4.KNOWN_RANDOM_SOLUTION_AND_VALUE_GIVEN_USE_PYTHON_TOOL_TO_EVALUATE_COMPONENTS_TO_ASSERT_CORRECTNESS
 5.LOCAL_SOLVER_DESIGNED_FOR_EVALUATION_EXTRA_OUTPUTS_ARE_EXPECTED
-6.CODE_MUST_BE_COMPATIBLE_WITH_SAMPLE_SOLUTION
+6.CODE_MUST_BE_COMPATIBLE_WITH_SAMPLE_SOLUTION_AND_LOCAL_SOLVER
 PROBLEM_DEF:
 ---
 $problema
@@ -222,23 +222,18 @@ def generarStrings(dataframe):
 
 def generateEvalPrompt(problemaID, inspiraciones, samplesol):
     prompt = templateEval.safe_substitute(
-        problema=inspiraciones['MATH_DEF'],
+        problema=inspiraciones,
         sampleSol = samplesol, 
-        Sol=inspiraciones['SOL_TYPE'],
-        Obj=inspiraciones['OBJ_CODE'], 
-        Eval = inspiraciones['EVAL_CODE']
+        Inspirations = 'NA'
     ) 
-    return problemaID, inspiraciones['MATH_DEF'], prompt
+    return prompt
 #Updatea el prompt, assume una sola fila por version. 
 
 def updateEvalPrompt(defProblema, componentes, resultados, feedback,samplesol):
     prompt = templateEvalUpdate.safe_substitute(
         problema = defProblema,
         sampleSol = samplesol,
-        Rep=componentes['REPRESENTATION'],
-        Eval=componentes['EVAL_CODE'], 
-        NB=componentes['NB_CODE'],
-        Perturb=componentes['PERTURB_CODE'], 
+        Inspirations = 'NA',
         Resultados=resultados,
         Feedback = feedback
     )
@@ -246,23 +241,18 @@ def updateEvalPrompt(defProblema, componentes, resultados, feedback,samplesol):
 
 def generateNBPrompt(problemaID, inspiraciones,samplesol):
     prompt = templateNB.safe_substitute(
-        problema=inspiraciones['MATH_DEF'],
+         problema=inspiraciones,
         sampleSol = samplesol, 
-        Sol=inspiraciones['SOL_TYPE'],
-        Obj=inspiraciones['OBJ_CODE'], 
-        Eval = inspiraciones['EVAL_CODE']
+        Inspirations = 'NA'
     ) 
-    return problemaID, inspiraciones['MATH_DEF'], prompt
+    return prompt
 #Updatea el prompt, assume una sola fila por version. 
 
 def updateNBPrompt(defProblema, componentes, resultados, feedback,samplesol):
     prompt = templateNBUpdate.safe_substitute(
         problema = defProblema,
         sampleSol = samplesol,
-        Rep=componentes['REPRESENTATION'],
-        Eval=componentes['EVAL_CODE'], 
-        NB=componentes['NB_CODE'],
-        Perturb=componentes['PERTURB_CODE'], 
+        Inspirations = 'NA',
         Resultados=resultados,
         Feedback = feedback
     )
@@ -271,23 +261,18 @@ def updateNBPrompt(defProblema, componentes, resultados, feedback,samplesol):
 
 def generatePerturbPrompt(problemaID, inspiraciones, samplesol):
     prompt = templatePerturb.safe_substitute(
-        problema=inspiraciones['MATH_DEF'],
+        problema=inspiraciones,
         sampleSol = samplesol, 
-        Sol=inspiraciones['SOL_TYPE'],
-        Obj=inspiraciones['OBJ_CODE'], 
-        Eval = inspiraciones['EVAL_CODE']
+        Inspirations = 'NA'
     ) 
-    return problemaID, inspiraciones['MATH_DEF'], prompt
+    return prompt
 #Updatea el prompt, assume una sola fila por version. 
 
 def updatePerturbPrompt(defProblema, componentes, resultados, feedback, samplesol):
     prompt = templatePerturbUpdate.safe_substitute(
         problema = defProblema,
         sampleSol = samplesol,
-        Rep=componentes['REPRESENTATION'],
-        Eval=componentes['EVAL_CODE'], 
-        NB=componentes['NB_CODE'],
-        Perturb=componentes['PERTURB_CODE'], 
+        Inspirations = 'NA',
         Resultados=resultados,
         Feedback = feedback
     )

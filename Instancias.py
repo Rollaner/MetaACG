@@ -50,7 +50,7 @@ class DataLoader:
         return problemaDB[::5]
 
     def procesarDatos(self, tipoProblema: str, tipoDataset: str, path: str):
-        archivosCSV = glob.glob(os.path.join(path, "*hard_sample.csv"))
+        archivosCSV = glob.glob(os.path.join(path, "*sample.csv"))
         for csv in archivosCSV:
             print(csv)
             with open(csv, 'r') as file:
@@ -123,10 +123,13 @@ class DataLoader:
         else:
             print(f"No se encontro el directorio para: {key} in {nombre}")
 
-    def getDatosInstancia(self, claveInstancia: str) -> Instancia | None:
-        return self.dataStore.get(claveInstancia)
+    def getInstancias(self, claveInstancia: str) -> List[Instancia] | None:
+        return [
+        instancia for key, instancia in self.dataStore.items() 
+        if key.startswith(claveInstancia)
+        ]
 
-    def getInstancia(self, claveInstancia: str) -> str | None:
+    def getProblemaInstancia(self, claveInstancia: str) -> str | None:
         record = self.dataStore.get(claveInstancia)
         return record.problem if record else None
     

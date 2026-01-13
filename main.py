@@ -27,38 +27,44 @@ def main():
     iteraciones = 3 #Genracion se atasca muy seguido. Se prueba sin reiniciar, luego probabos con reinicio. 
     filaInicio = 3
     filaMultiplo = 3
-    tipoProblema = "GC"
+    tipoProblema = "K"
     #Inicializar datos
     load_dotenv()
     #Modificacion para pruebas, prepara modo batch por defecto. Estas lineas se tienen que eliminar cuando se empieze a optimizar
     if len(sys.argv) == 1:
-        sys.argv.append('-p')
+        sys.argv.extend(['knapsack_hard_dataset_in_house_24_11', '-o'])
     pathDB= os.path.join(os.path.dirname(__file__), 'Data')
     #Fin modificacion para pruebas
     os.makedirs(pathDB, exist_ok=True)
-    componentesPath = os.path.join(pathDB, f'componentes-SR-{tipoProblema}-HUD.jsonl')
     problemasPath = os.path.join(pathDB, f'problemas-{tipoProblema}.jsonl')
-    feedbackPath = os.path.join(pathDB,f'feedback-SR-{tipoProblema}-HUD.jsonl')
-    resultPath = os.path.join(pathDB,f'resultados-SR-{tipoProblema}-HUD.jsonl')
+    componentesPath = os.path.join(pathDB, f'componentes-SR-{tipoProblema}.jsonl')
+    feedbackPath = os.path.join(pathDB,f'feedback-SR-{tipoProblema}.jsonl')
+    resultPath = os.path.join(pathDB,f'resultados-SR-{tipoProblema}.jsonl')
+    componentesPathNP = os.path.join(pathDB, f'componentes-SR-{tipoProblema}-NP.jsonl')
+    feedbackPathNP = os.path.join(pathDB,f'feedback-SR-{tipoProblema}-NP.jsonl')
+    resultPathNP = os.path.join(pathDB,f'resultados-SR-{tipoProblema}-NP.jsonl')
     instancias = DataLoader()
     instancias.cargarProblemas()
     llms = generador()
     llms.cargarLLMs()
     parser = argparse.ArgumentParser()
-    parser.add_argument('-b', '--batch',action='store_true', dest='batch_def', help='Definir problemas en batch, no optimiza')
-    parser.add_argument('-o', '--opt',action='store_true', dest='skip_def', help='Solo optimizar, no define')
-    parser.add_argument('-oh', '--opth',action='store_true', dest='skip_defH', help='Solo optimizar, no define. sin solucion conocida')
-    parser.add_argument('-ohud', '--opthud',action='store_true', dest='skip_defHUD', help='Solo optimizar, no define. sin solucion conocida, uso directo')
-    parser.add_argument('-n', '--nd',action='store_true', dest='not_def', help='Optimizar pero sin definir antes')
-    parser.add_argument('-p', '--plot',action='store_true', dest='plot', help='Procesar resultados')
+    # Este no tiene flag (-  o bien --). Es posicional. Para referencia futura: --help pone los posicionales primero
+    parser.add_argument('problema_ID', nargs='?',default=None,help="ID del problema a optimizar: Formato: Tipo_dataset_ID, IDs son equivalentes al nombre de carpeta que contiene los datos de la instancia, incompatible con '-b/--batch'")
+    parser.add_argument('-t', '--type', type=str, choices=['K','GC'], help='Tipo de problema para procesamiento en Batch. (K)napsack, (GC) Graph Coloring')
+    parser.add_argument('-b', '--batch', action= 'store_true', dest='batch',help='Realizar operaciones con todos los datos y problemas disponibles de forma automatica')
+    parser.add_argument('-p', '--prep',action='store_true', dest='prep', help='Realiza preparacion de problemas en batch, no optimiza')
+    parser.add_argument('-o', '--opt',action='store_true', dest='opt', help='Solo optimizar, pero espera preparacion previa- Usar despues the -p o --prep. sin solucion conocida')
+    parser.add_argument('-np', '--noprep',action='store_true', dest='skip_prep', help='Optimizar pero sin preparar antes, incompatible con --prep/-p y --opt/-o')
+    parser.add_argument('-plt', '--plot',action='store_true', dest='plot', help='Procesar resultados')
+    
+    ## puede que lo podamos reciclar para otra cosa, sino eliminar
     parser.add_argument('-qt','--quicktest',action='store_true', dest='quicktest', help='Probar funcionalidad de componentes generados')
-    parser.add_argument('problem_ID', nargs='?',default=None,help="ID del problema a optimizar: Formato: Tipo_dataset_ID")
     args=parser.parse_args()
 
     if args.plot:
         problemaDB = pd.read_json(problemasPath,lines=True)
         if os.path.exists(componentesPath) and os.path.exists(resultPath) and os.path.exists(feedbackPath):
-            resultKDB = cargarResultados(os.path.join(pathDB,'resultados-SR-K.jsonl'))
+            resultDB = cargarResultados(os.path.join(pathDB,'resultados-SR-K.jsonl'))
             resultControlDB = cargarResultados(os.path.join(pathDB,'resultados-SR-K-SD.jsonl'))
             resultUDDB = cargarResultados(os.path.join(pathDB,'resultados-SR-K-PR.jsonl'))
             resultGCDB = cargarResultados(os.path.join(pathDB,'resultados-SR-GC.jsonl'))
@@ -81,62 +87,6 @@ def main():
             print("No hay resultados disponibles. Corra el algoritmo primero")
         return 0
 
-    if args.skip_def:
-        print("Datos inicializados. Iniciando optimización")
-        problemaDB = pd.read_json(problemasPath,lines=True)
-        if os.path.exists(componentesPath) and os.path.exists(resultPath) and os.path.exists(feedbackPath):
-            componenteDB = pd.read_json(componentesPath,lines=True)
-            feedbackDB = pd.read_json(feedbackPath,lines=True)
-            resultKDB = pd.read_json(resultPath,lines=True)
-        else:
-            componenteDB = pd.DataFrame(columns=['ID_Problema', 'Representacion', 'Evaluacion', 'Vecindad', 'Perturbacion','SolucionPrueba','Version'])
-            feedbackDB = pd.DataFrame(columns=['ID_Problema', 'Representacion', 'Componente','Version', 'Feedback'])
-            resultKDB = pd.DataFrame(columns=['ID_Problema', 'Representacion', 'Evaluacion', 'Vecindad', 'Perturbacion', 'Resultados','Solucion','Valor Optimo', 'Metaheuristica', 'Tiempo'])
-        problemasFiltrados = problemaDB.iloc[filaMultiplo::filaMultiplo]
-        for tuplaProblema in problemasFiltrados.itertuples(index=False):    
-            componenteDB, feedbackDB, resultKDB = Optimizacion.optimizarProblemaPredefinido(tuplaProblema, componenteDB,resultKDB,feedbackDB, iteraciones)
-            componenteDB.to_json(componentesPath,orient='records',lines=True)
-            feedbackDB.to_json(feedbackPath,orient='records',lines=True)
-            resultKDB.to_json(resultPath,orient='records',lines=True)
-        return 0
-    if args.skip_defH:
-        print("Datos inicializados. Iniciando optimización")
-        problemaDB = pd.read_json(problemasPath,lines=True)
-        if os.path.exists(componentesPath) and os.path.exists(resultPath) and os.path.exists(feedbackPath):
-            componenteDB = pd.read_json(componentesPath,lines=True)
-            feedbackDB = pd.read_json(feedbackPath,lines=True)
-            resultKDB = pd.read_json(resultPath,lines=True)
-        else:
-            componenteDB = pd.DataFrame(columns=['ID_Problema', 'Representacion', 'Evaluacion', 'Vecindad', 'Perturbacion','SolucionPrueba','Version'])
-            feedbackDB = pd.DataFrame(columns=['ID_Problema', 'Representacion', 'Componente','Version', 'Feedback'])
-            resultKDB = pd.DataFrame(columns=['ID_Problema', 'Representacion', 'Evaluacion', 'Vecindad', 'Perturbacion', 'Resultados','Solucion','Valor Optimo', 'Metaheuristica', 'Tiempo'])
-        problemasFiltrados = problemaDB.iloc[filaMultiplo::filaMultiplo]
-        for tuplaProblema in problemasFiltrados.itertuples(index=False):    
-            componenteDB, feedbackDB, resultKDB = Optimizacion.optimizarProblemaPredefinidoH(tuplaProblema, componenteDB,resultKDB,feedbackDB, iteraciones)
-            componenteDB.to_json(componentesPath,orient='records',lines=True)
-            feedbackDB.to_json(feedbackPath,orient='records',lines=True)
-            resultKDB.to_json(resultPath,orient='records',lines=True)
-        return 0
-    if args.skip_defHUD:
-        print("Datos inicializados. Iniciando optimización")
-        problemaDB = pd.read_json(problemasPath,lines=True)
-        if os.path.exists(componentesPath) and os.path.exists(resultPath) and os.path.exists(feedbackPath):
-            componenteDB = pd.read_json(componentesPath,lines=True)
-            feedbackDB = pd.read_json(feedbackPath,lines=True)
-            resultUDB = pd.read_json(resultPath,lines=True)
-        else:
-            componenteDB = pd.DataFrame(columns=['ID_Problema', 'Representacion', 'Evaluacion', 'Vecindad', 'Perturbacion','Version'])
-            feedbackDB = pd.DataFrame(columns=['ID_Problema', 'Representacion', 'Componente','Version', 'Feedback'])
-            resultUDB = pd.DataFrame(columns=['ID_Problema', 'Representacion', 'Evaluacion', 'Vecindad', 'Perturbacion', 'Resultados','Solucion','Valor Optimo', 'Metaheuristica', 'Tiempo'])
-        problemasFiltrados = problemaDB.iloc[filaMultiplo::filaMultiplo]
-        for tuplaProblema in problemasFiltrados.itertuples(index=False):    
-            componenteDB, feedbackDB, resultUDB = Optimizacion.optimizarProblemaPredefinidoHUD(tuplaProblema, componenteDB,resultUDB,feedbackDB, iteraciones)
-            #resultUDB = comprobarComponentesCD(tuplaProblema,componenteDB,resultUDB)
-            componenteDB.to_json(componentesPath,orient='records',lines=True)
-            feedbackDB.to_json(feedbackPath,orient='records',lines=True)
-            resultUDB.to_json(resultPath,orient='records',lines=True)
-        return 0
-    
     if args.quicktest:
         problemaDB = pd.read_json(problemasPath,lines=True)
         if os.path.exists(componentesPath) and os.path.exists(resultPath):
@@ -145,40 +95,93 @@ def main():
         else:
             componenteDB = pd.DataFrame(columns=['ID_Problema', 'Representacion', 'Evaluacion', 'Vecindad', 'Perturbacion','Version'])
             resultDB = pd.DataFrame(columns=['ID_Problema', 'Representacion', 'Evaluacion', 'Vecindad', 'Perturbacion', 'Resultados','Solucion','Valor Optimo', 'Metaheuristica', 'Tiempo'])
-        for tuplaProblema in problemaDB.itertuples(index=False):
-            resultDB = comprobarComponentesUD(tuplaProblema,componenteDB,resultDB)
-        resultKDB.to_json(resultPath,orient='records',lines=True)
+        for problema in problemaDB.itertuples(index=False):
+            resultDB = comprobarComponentesUD(problema,componenteDB,resultDB)
+        resultDB.to_json(resultPath,orient='records',lines=True)
         return 0
 
-    #Problemas en batch
-    if args.batch_def:
-        print("Datos inicializados. Iniciando definicion matematica")
-        if tipoProblema == "GC":
-            Preparacion.definirBatch(instancias,llms, problemasPath, tipo="graph_coloring")
-        elif tipoProblema == "K":
-            Preparacion.definirBatch(instancias,llms, problemasPath, tipo="knapsack")
-        return 0
-    if args.not_def:
-        print("Datos inicializados. Iniciando definicion matematica")
-        problemaDB = pd.read_json(problemasPath,lines=True)
-        if os.path.exists(componentesPath) and os.path.exists(resultPath) and os.path.exists(feedbackPath):
-            componenteDB = pd.read_json(componentesPath,lines=True)
-            feedbackDB = pd.read_json(feedbackPath,lines=True)
-            resultKDB = pd.read_json(resultPath,lines=True)
-        else:
-            componenteDB = pd.DataFrame(columns=['ID_Problema', 'Representacion', 'Evaluacion', 'Vecindad', 'Perturbacion','Version'])
-            feedbackDB = pd.DataFrame(columns=['ID_Problema', 'Representacion', 'Componente','Version', 'Feedback'])
-            resultKDB = pd.DataFrame(columns=['ID_Problema', 'Representacion', 'Evaluacion', 'Vecindad', 'Perturbacion', 'Resultados','Solucion','Valor Optimo', 'Metaheuristica', 'Tiempo'])
-        problemasFiltrados = problemaDB.iloc[filaInicio::filaMultiplo]
-        for tuplaProblema in problemasFiltrados.itertuples(index=False):    
-            componenteDB, feedbackDB, resultKDB = Optimizacion.optimizarProblemaSinPreparar(tuplaProblema, componenteDB,resultKDB,feedbackDB, iteraciones)
-            componenteDB.to_json(componentesPath,orient='records',lines=True)
-            feedbackDB.to_json(feedbackPath,orient='records',lines=True)
-            resultKDB.to_json(resultPath,orient='records',lines=True)
-        return 0
-    else:
-    #Problema individual
-        respuesta,feedback,resultados = Preparacion.definirIndividual(instancias,llms,problemasPath,"graph_coloring_random_dataset_in_house_9_8")
+    if(args.problema_ID and args.batch):
+        parser.error("El argumento -b/--batch) no puede ser usado si se define una ID de problema")
+    if(args.prep or args.opt) and args.skip_prep:
+        parser.error("El argumento -np/--noprep no es compatible con --prep/-p y/o --opt/-o'")
+    if args.problema_ID:
+        problema_ID = args.problema_ID
+        print(problema_ID)
+        if args.prep:
+            print("Datos inicializados. Iniciando preparación")
+            listaDatos = prepararIndividual(instancias,llms,problemasPath,problema_ID) #Nos interesan 1, 5,6,7,8 y 9. ID, Respuesta, Feedback, contenidos, solucion, valor solucion respectivamente
+        if args.opt:
+                componenteDB, feedbackDB, resultDB = cargarDBs(componentesPath,resultPath,feedbackPath)
+            #if listaDatos:
+            #    print("Datos inicializados. Iniciando optimizacion")
+            #    for datos in listaDatos:
+            #        problema = datos[5] 
+            #        solucion = datos[8]
+            #        componenteDB, feedbackDB, resultDB = Optimizacion.optimizarProblemaPreparado(problema_ID, problema, solucion, componenteDB,resultDB,feedbackDB, iteraciones)
+            #        componenteDB.to_json(componentesPath,orient='records',lines=True)
+            #        feedbackDB.to_json(feedbackPath,orient='records',lines=True)
+            #        resultDB.to_json(resultPath,orient='records',lines=True)
+            #    return 0
+            #else:
+                problemaDB = pd.read_json(problemasPath,lines=True)
+                filas_serie = problemaDB[problemaDB['Instancia'].str.startswith(problema_ID, na=False)] ## poco eficiente, pero como solo se hace unas pocas veces no importa. .iloc[0] es para que nos entregue la fila como serie
+                if filas_serie.empty: 
+                    print("Id de problema %s no encontrado, preparelo primero o revise los datos de entrada", problema_ID)
+                    return 0
+                print("Datos inicializados. Iniciando optimizacion")
+                for problema in filas_serie.itertuples(index=False):
+                    componenteDB, feedbackDB, resultDB = Optimizacion.optimizarProblemaPreparadoDB(problema, componenteDB,resultDB,feedbackDB, iteraciones)
+                    componenteDB.to_json(componentesPath,orient='records',lines=True)
+                    feedbackDB.to_json(feedbackPath,orient='records',lines=True)
+                    resultDB.to_json(resultPath,orient='records',lines=True)
+                return 0         
+        if args.skip_prep and not args.opt and not args.prep:
+            instancias = instancias.getInstancias(problema_ID)
+            if len(instancias) == 0 : 
+                print("Id de problema %s no encontrado, definalo primero o revise los datos de entrada", problema_ID)
+                return 0
+            componenteDBNP, feedbackDBNP, resultDBNP = cargarDBs(componentesPathNP,resultPathNP,feedbackPathNP)
+            print("Datos inicializados. Iniciando Iniciando optimizacion")
+            for instancia in instancias:
+                componenteDBNP, feedbackDBNP, resultDBNP = Optimizacion.optimizarProblemaSinPreparar(instancia.claveInstancia,instancia.problem, instancia.parsedSolution, componenteDBNP,resultDBNP,feedbackDBNP, iteraciones) # Revisar logica para que efectivamente trabaje con los problemas en bruto. Parece que de momento utiliza los mismos que el sistema convencional
+                componenteDBNP.to_json(componentesPath,orient='records',lines=True)
+                feedbackDBNP.to_json(feedbackPath,orient='records',lines=True)
+                resultDBNP.to_json(resultPath,orient='records',lines=True)
+            return 0
+
+    if args.batch and not args.problema_ID:
+        if args.prep:
+            print("Datos inicializados. Iniciando preparación")
+            if tipoProblema == "GC":
+                Preparacion.prepararBatch(instancias,llms, problemasPath, tipo="graph_coloring")
+            elif tipoProblema == "K":
+                Preparacion.prepararBatch(instancias,llms, problemasPath, tipo="knapsack")
+        if args.opt:
+            print("Datos inicializados. Iniciando optimización")
+            problemaDB = pd.read_json(problemasPath,lines=True)
+            componenteDB, feedbackDB, resultDB = cargarDBs(componentesPath,resultPath,feedbackPath)
+            problemasFiltrados = problemaDB.iloc[filaMultiplo::filaMultiplo]
+            for problema in problemasFiltrados.itertuples(index=False):    
+                componenteDB, feedbackDB, resultDB = Optimizacion.optimizarProblemaPreparado(problema, componenteDB,resultDB,feedbackDB, iteraciones)
+                componenteDB.to_json(componentesPath,orient='records',lines=True)
+                feedbackDB.to_json(feedbackPath,orient='records',lines=True)
+                resultDB.to_json(resultPath,orient='records',lines=True)
+
+        if args.skip_prep and not args.opt and not args.prep:
+            componenteDBNP, feedbackDBNP, resultDBNP = cargarDBs(componentesPathNP,resultPathNP,feedbackPathNP)
+            instancias = instancias.getAllInstancias()
+            if len(instancias) == 0: 
+                print("No se encontraron instancias de problemas para optimizar, revise que existen datos en %s con formato Tipo_dataset_ID, donde Tipo, dataset e ID son carpetas anidades en ese orden y/o que existen problemas definidos en un archivo que termine en *sample.csv dentro de %s", pathDB)
+                return 0
+            print("Datos inicializados. Iniciando Iniciando optimizacion")
+            for instancia in instancias:
+                componenteDBNP, feedbackDBNP, resultDBNP = Optimizacion.optimizarProblemaSinPreparar(instancia.claveInstancia,instancia.problem, instancia.parsedSolution, componenteDBNP,resultDBNP,feedbackDBNP, iteraciones) # Revisar logica para que efectivamente trabaje con los problemas en bruto. Parece que de momento utiliza los mismos que el sistema convencional
+                componenteDBNP.to_json(componentesPath,orient='records',lines=True)
+                feedbackDBNP.to_json(feedbackPath,orient='records',lines=True)
+                resultDBNP.to_json(resultPath,orient='records',lines=True)
+            return 0
+       
+
     #componenteDB = pd.read_json(componentesPath,lines=True)
     problemaDB = pd.read_json(problemasPath,lines=True)
     #feedbackDB = pd.read_json(feedbackPath,lines=True)
@@ -188,8 +191,23 @@ def main():
     #resultDB.to_json(resultPath,lines=True)
     return 0
 
+def prepararIndividual(instancias,llms,problemasPath,instancia):
+    listaDatos = Preparacion.aplanarIndividual(instancias,llms,problemasPath,instancia) #Nos interesan 5,6,7,8 y 9. Respuesta, Feedback, contenidos, solucion, valor solucion respectivamente
+    for datos in listaDatos:
+        respuesta,feedback = datos[5], datos[6]
+        print("RESPUESTA final: \n" + respuesta + "---------------------- \n FEEDBACK mas reciente: \n" + feedback)
+    return listaDatos
 
-
+def cargarDBs(componentesPath,resultPath,feedbackPath):
+    if os.path.exists(componentesPath) and os.path.exists(resultPath) and os.path.exists(feedbackPath):
+        componenteDB = pd.read_json(componentesPath,lines=True)
+        feedbackDB = pd.read_json(feedbackPath,lines=True)
+        resultDB = pd.read_json(resultPath,lines=True)
+    else:
+        componenteDB = pd.DataFrame(columns=['ID_Problema', 'Representacion', 'Evaluacion', 'Vecindad', 'Perturbacion','SolucionPrueba','Version'])
+        feedbackDB = pd.DataFrame(columns=['ID_Problema', 'Representacion', 'Componente','Version', 'Feedback'])
+        resultDB = pd.DataFrame(columns=['ID_Problema', 'Representacion', 'Evaluacion', 'Vecindad', 'Perturbacion', 'Resultados','Solucion','Valor Optimo', 'Metaheuristica', 'Tiempo'])
+    return componenteDB,feedbackDB,resultDB
 
 def comprobarComponentesCD(problema,componentes:pd.DataFrame,resultDB: pd.DataFrame):
             problemaID, defProblema, _, _, seedPrompt = PromptSamplerOP.generateSeedPrompt(problema)
@@ -501,8 +519,6 @@ def normalizar_resultado(x):
         except (SyntaxError, ValueError):
             return x
     return x
-
-
 
 # nunca se uso
 def probarCorrectitud(MejorConocida, valorMejorConocida, componentes, resultado):
