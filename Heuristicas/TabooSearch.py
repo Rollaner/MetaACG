@@ -1,9 +1,9 @@
-def TS(solucionActual,mejorSolucion,mejorCosto,funcionVencindad, funcionEvaluacion,iteraciones, sizeListaTabu, duracionTabu):
+def TS(solucionActual,mejorSolucion,mejorCosto,datosProblema,funcionVencindad, funcionEvaluacion,iteraciones, sizeListaTabu, duracionTabu):
     i = 0
     listaTabu = {}
-    mejorCosto = funcionEvaluacion(solucionActual)
+    mejorCosto = funcionEvaluacion(solucionActual,datosProblema)
     while i < iteraciones:
-        vecindad = funcionVencindad(solucionActual)
+        vecindad = funcionVencindad(solucionActual,datosProblema)
         mejorVecinoIteracion = None
         costoMejorVecinoIteracion = float('inf')
         movimientoSeleccionado = None
@@ -36,5 +36,5 @@ def TS(solucionActual,mejorSolucion,mejorCosto,funcionVencindad, funcionEvaluaci
             del listaTabu[m]
 
         i += 1
-    return solucionActual, funcionEvaluacion(solucionActual), mejorSolucion, mejorCosto
+    return solucionActual, funcionEvaluacion(solucionActual,datosProblema), mejorSolucion, mejorCosto
 

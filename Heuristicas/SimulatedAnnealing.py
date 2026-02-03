@@ -2,13 +2,13 @@ import random
 import math
 
 
-def SA(solucionActual,mejor, mejorCosto, funcionVencindad, funcionEvaluacion, temp, minTemp, factorEnfriamiento):
-    mejorCosto = funcionEvaluacion(solucionActual)
+def SA(solucionActual,mejor, mejorCosto,datosProblema, funcionVencindad, funcionEvaluacion, temp, minTemp, factorEnfriamiento):
+    mejorCosto = funcionEvaluacion(solucionActual,datosProblema)
     while(temp > minTemp):
-        vecino, _ = funcionVencindad(solucionActual)
-        costoVecino = funcionEvaluacion(vecino)
-        costoActual = funcionEvaluacion(solucionActual)
-        delta = costoVecino - funcionEvaluacion(solucionActual)
+        vecino, _ = funcionVencindad(solucionActual,datosProblema)
+        costoVecino = funcionEvaluacion(vecino,datosProblema)
+        costoActual = funcionEvaluacion(solucionActual,datosProblema)
+        delta = costoVecino - funcionEvaluacion(solucionActual,datosProblema)
         if costoVecino < mejorCosto:
             mejor = vecino
             mejorCosto = costoVecino

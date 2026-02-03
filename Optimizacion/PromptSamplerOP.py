@@ -5,9 +5,17 @@ import pandas as pd
 import json
 ## To-Do: Revisar templates. (Sanity check)
 templateEval = Template("""TASK:GENERATE_COMPONENT_HEURISTIC_EVAL
-PROBLEM_DEF:
+PROBLEM_SCHEMA:
 ---
-$problema
+$schema
+---
+PROBLEM_OBJECTIVE:
+---
+$objective
+---
+PROBLEM_CONSTRAINTS:
+---
+$constraints
 ---
 SAMPLE_SOL:
 $sampleSol
@@ -15,15 +23,15 @@ $sampleSol
 OUTPUT_FORMAT_STRICT:JSON.MUST_CONTAIN_2_KEYS.
 OUTPUT_JSON_SCHEMA:{"REPRESENTATION": "...", "EVAL_CODE": "..."}
 
-EVAL_CODE_DEF:PYTHON_FUNC.NAME=evaluate_solution.ARGS=1(solution).RET_NUM_FITNESS.SIG=def evaluate_solution(solution):
+EVAL_CODE_DEF:PYTHON_FUNC.NAME=evaluate_solution.ARGS=2(solution,schema).RET_NUM_FITNESS.SIG=def evaluate_solution(solution,schema):
 
 CRITICAL_INSTRUCTIONS:
-1.CODE_SYNTAX_CORRECT_FUNC_SELF_CONTAINED.
+1.CODE_SYNTAX_CORRECT_FUNC_SELF_CONTAINED_SCHEMA_WILL_BE_GIVEN_AS_INSTANCED_DATACLASS.
 2.NO_ADD_TEXT_OR_EXPLANATION_OUTSIDE_THE_STRICT_OUTPUT_JSON.
-3.EVAL_CODE_SIG_MUST_BE_def evaluate_solution(solution):
+3.EVAL_CODE_SIG_MUST_BE_def evaluate_solution(solution,schema):
 4.GENERATED_CODE_MUST_BE_COMPATIBLE_WITH_SAMPLE_SOL
 5.CODE_KEYS_MUST_INCLUDE_IMPORTS.
-6.NO_GLOBAL_VAR_REFERENCE_OR_DEFINITION_PROBLEM_DATA_MUST_BE_INTERNAL.
+6.NO_GLOBAL_VAR_REFERENCE_OR_DEFINITION_PROBLEM_DATA_MUST_BE_EXTRACTED_FROM_SCHEMA_DATACLASS.
 7.EXTERNAL_DATA_MUST_BE_PASSED_AS_ARGUMENT_DATA_MUST_BE_ENCODED_OR_EMBEDDED.
                         
 INSPIRATIONS:
@@ -31,9 +39,17 @@ $Inspirations
 """)
 
 templatePerturb= Template("""TASK:GENERATE_COMPONENT_HEURISTIC_PERTURB                        
-PROBLEM_DEF:
+PROBLEM_SCHEMA:
 ---
-$problema
+$schema
+---
+PROBLEM_OBJECTIVE:
+---
+$objective
+---
+PROBLEM_CONSTRAINTS:
+---
+$constraints
 ---
 SAMPLE_SOL:
 $sampleSol
@@ -41,15 +57,15 @@ $sampleSol
 OUTPUT_FORMAT_STRICT:JSON.MUST_CONTAIN_2_KEYS.
 OUTPUT_JSON_SCHEMA:{"REPRESENTATION": "...", "PERTURB_CODE": "..."}
 
-PERTURB_CODE_DEF:PYTHON_FUNC.NAME=perturb_solution.ARGS=1(solution).OP_PERTURBED_SOLUTION.SIG=def perturb_solution(solution):
+PERTURB_CODE_DEF:PYTHON_FUNC.NAME=perturb_solution.ARGS=2(solution,schema).OP_PERTURBED_SOLUTION.SIG=def perturb_solution(solution,schema):
 
 CRITICAL_INSTRUCTIONS:
-1.CODE_SYNTAX_CORRECT_FUNC_SELF_CONTAINED.
+1.CODE_SYNTAX_CORRECT_FUNC_SELF_CONTAINED_SCHEMA_WILL_BE_GIVEN_AS_INSTANCED_DATACLASS.
 2.NO_ADD_TEXT_OR_EXPLANATION_OUTSIDE_THE_STRICT_OUTPUT_JSON.
-3.PERTURB_CODE_SIG_MUST_BE_def perturb_solution(solution):
+3.PERTURB_CODE_SIG_MUST_BE_def perturb_solution(solution,schema):
 4.GENERATED_CODE_MUST_BE_COMPATIBLE_WITH_SAMPLE_SOL
 5.CODE_KEYS_MUST_INCLUDE_IMPORTS.
-6.NO_GLOBAL_VAR_REFERENCE_OR_DEFINITION_PROBLEM_DATA_MUST_BE_INTERNAL.
+6.NO_GLOBAL_VAR_REFERENCE_OR_DEFINITION_PROBLEM_DATA_MUST_BE_EXTRACTED_FROM_SCHEMA_DATACLASS.
 7.EXTERNAL_DATA_MUST_BE_PASSED_AS_ARGUMENT_DATA_MUST_BE_ENCODED_OR_EMBEDDED.
                         
 INSPIRATIONS:
@@ -57,9 +73,17 @@ $Inspirations
 """)
 
 templateNB= Template("""TASK:GENERATE_COMPONENT_HEURISTIC_NB
-PROBLEM_DEF:
+PROBLEM_SCHEMA:
 ---
-$problema
+$schema
+---
+PROBLEM_OBJECTIVE:
+---
+$objective
+---
+PROBLEM_CONSTRAINTS:
+---
+$constraints
 ---
 SAMPLE_SOL:
 $sampleSol
@@ -67,15 +91,15 @@ $sampleSol
 OUTPUT_FORMAT_STRICT:JSON.MUST_CONTAIN_2_KEYS.
 OUTPUT_JSON_SCHEMA:{"REPRESENTATION": "...", "NB_CODE": "..."}
 
-NB_CODE_DEF:PYTHON_FUNC.NAME=generate_neighbour.ARGS=1(solution).OP_NEIGHBOR_SOLUTION.SIG=def generate_neighbour(solution) -> ("NB_Type", "Movement_Type"):
+NB_CODE_DEF:PYTHON_FUNC.NAME=generate_neighbour.ARGS=2(solution,schema).OP_NEIGHBOR_SOLUTION.SIG=def generate_neighbour(solution,schema) -> ("NB_Type", "Movement_Type"):
 
 CRITICAL_INSTRUCTIONS:
-1.CODE_SYNTAX_CORRECT_FUNC_SELF_CONTAINED.
+1.CODE_SYNTAX_CORRECT_FUNC_SELF_CONTAINED_SCHEMA_WILL_BE_GIVEN_AS_INSTANCED_DATACLASS.
 2.NO_ADD_TEXT_OR_EXPLANATION_OUTSIDE_THE_STRICT_OUTPUT_JSON.
-3.NB_CODE_SIG_MUST_BE_def generate_neighbour(solution) -> ("NB_Type", "Movement_Type"):
+3.NB_CODE_SIG_MUST_BE_def generate_neighbour(solution,schema) -> ("NB_Type", "Movement_Type"):
 4.GENERATED_CODE_MUST_BE_COMPATIBLE_WITH_SAMPLE_SOL
 5.CODE_KEYS_MUST_INCLUDE_IMPORTS.
-6.NO_GLOBAL_VAR_REFERENCE_OR_DEFINITION_PROBLEM_DATA_MUST_BE_INTERNAL.
+6.NO_GLOBAL_VAR_REFERENCE_OR_DEFINITION_PROBLEM_DATA_MUST_BE_EXTRACTED_FROM_SCHEMA_DATACLASS.
 7.EXTERNAL_DATA_MUST_BE_PASSED_AS_ARGUMENT_DATA_MUST_BE_ENCODED_OR_EMBEDDED.
                         
 INSPIRATIONS:
@@ -83,9 +107,17 @@ $Inspirations
 """)
 
 templateEvalUpdate = Template("""TASK:GENERATE_COMPONENT_HEURISTIC_EVAL
-PROBLEM_DEF:
+PROBLEM_SCHEMA:
 ---
-$problema
+$schema
+---
+PROBLEM_OBJECTIVE:
+---
+$objective
+---
+PROBLEM_CONSTRAINTS:
+---
+$constraints
 ---
 SAMPLE_SOL:
 $sampleSol
@@ -93,15 +125,15 @@ $sampleSol
 OUTPUT_FORMAT_STRICT:JSON.MUST_CONTAIN_2_KEYS.
 OUTPUT_JSON_SCHEMA:{"REPRESENTATION": "...", "EVAL_CODE": "..."}
 
-EVAL_CODE_DEF:PYTHON_FUNC.NAME=evaluate_solution.ARGS=1(solution).RET_NUM_FITNESS.SIG=def evaluate_solution(solution):
+EVAL_CODE_DEF:PYTHON_FUNC.NAME=evaluate_solution.ARGS=2(solution,schema).RET_NUM_FITNESS.SIG=def evaluate_solution(solution,schema):
 
 CRITICAL_INSTRUCTIONS:
-1.CODE_SYNTAX_CORRECT_FUNC_SELF_CONTAINED.
+1.CODE_SYNTAX_CORRECT_FUNC_SELF_CONTAINED_SCHEMA_WILL_BE_GIVEN_AS_INSTANCED_DATACLASS.
 2.NO_ADD_TEXT_OR_EXPLANATION_OUTSIDE_THE_STRICT_OUTPUT_JSON.
-3.EVAL_CODE_SIG_MUST_BE_def evaluate_solution(solution):
+3.EVAL_CODE_SIG_MUST_BE_def evaluate_solution(solution,schema):
 4.GENERATED_CODE_MUST_BE_COMPATIBLE_WITH_SAMPLE_SOL
 5.CODE_KEYS_MUST_INCLUDE_IMPORTS.
-6.NO_GLOBAL_VAR_REFERENCE_OR_DEFINITION_PROBLEM_DATA_MUST_BE_INTERNAL.
+6.NO_GLOBAL_VAR_REFERENCE_OR_DEFINITION_PROBLEM_DATA_MUST_BE_EXTRACTED_FROM_SCHEMA_DATACLASS.
 7.EXTERNAL_DATA_MUST_BE_PASSED_AS_ARGUMENT_DATA_MUST_BE_ENCODED_OR_EMBEDDED.
                         
 INSPIRATIONS:
@@ -113,9 +145,17 @@ $Feedback
 """)
 
 templatePerturbUpdate = Template("""TASK:GENERATE_COMPONENT_HEURISTIC_PERTURB
-PROBLEM_DEF:
+PROBLEM_SCHEMA:
 ---
-$problema
+$schema
+---
+PROBLEM_OBJECTIVE:
+---
+$objective
+---
+PROBLEM_CONSTRAINTS:
+---
+$constraints
 ---
 SAMPLE_SOL:
 $sampleSol
@@ -123,15 +163,15 @@ $sampleSol
 OUTPUT_FORMAT_STRICT:JSON.MUST_CONTAIN_2_KEYS.
 OUTPUT_JSON_SCHEMA:{"REPRESENTATION": "...", "PERTURB_CODE": "..."}
 
-PERTURB_CODE_DEF:PYTHON_FUNC.NAME=perturb_solution.ARGS=1(solution).OP_PERTURBED_SOLUTION.SIG=def perturb_solution(solution):
+PERTURB_CODE_DEF:PYTHON_FUNC.NAME=perturb_solution.ARGS=2(solution,schema).OP_PERTURBED_SOLUTION.SIG=def perturb_solution(solution,schema):
 
 CRITICAL_INSTRUCTIONS:
-1.CODE_SYNTAX_CORRECT_FUNC_SELF_CONTAINED.
+1.CODE_SYNTAX_CORRECT_FUNC_SELF_CONTAINED_SCHEMA_WILL_BE_GIVEN_AS_INSTANCED_DATACLASS.
 2.NO_ADD_TEXT_OR_EXPLANATION_OUTSIDE_THE_STRICT_OUTPUT_JSON.
-3.PERTURB_CODE_SIG_MUST_BE_def perturb_solution(solution):
+3.PERTURB_CODE_SIG_MUST_BE_def perturb_solution(solution,schema):
 4.GENERATED_CODE_MUST_BE_COMPATIBLE_WITH_SAMPLE_SOL
 5.CODE_KEYS_MUST_INCLUDE_IMPORTS.
-6.NO_GLOBAL_VAR_REFERENCE_OR_DEFINITION_PROBLEM_DATA_MUST_BE_INTERNAL.
+6.NO_GLOBAL_VAR_REFERENCE_OR_DEFINITION_PROBLEM_DATA_MUST_BE_EXTRACTED_FROM_SCHEMA_DATACLASS.
 7.EXTERNAL_DATA_MUST_BE_PASSED_AS_ARGUMENT_DATA_MUST_BE_ENCODED_OR_EMBEDDED.
                         
 INSPIRATIONS:
@@ -143,9 +183,17 @@ $Feedback
 """)
 
 templateNBUpdate = Template("""TASK:GENERATE_COMPONENT_HEURISTIC_NB
-PROBLEM_DEF:
+PROBLEM_SCHEMA:
 ---
-$problema
+$schema
+---
+PROBLEM_OBJECTIVE:
+---
+$objective
+---
+PROBLEM_CONSTRAINTS:
+---
+$constraints
 ---
 SAMPLE_SOL:
 $sampleSol
@@ -153,15 +201,15 @@ $sampleSol
 OUTPUT_FORMAT_STRICT:JSON.MUST_CONTAIN_2_KEYS.
 OUTPUT_JSON_SCHEMA:{"REPRESENTATION": "...", "NB_CODE": "..."}
 
-NB_CODE_DEF:PYTHON_FUNC.NAME=generate_neighbour.ARGS=1(solution).OP_NEIGHBOR_SOLUTION.SIG=def generate_neighbour(solution) -> ("NB_Type", "Movement_Type"):
+NB_CODE_DEF:PYTHON_FUNC.NAME=generate_neighbour.ARGS=2(solution,schema).OP_NEIGHBOR_SOLUTION.SIG=def generate_neighbour(solution,schema) -> ("NB_Type", "Movement_Type"):
 
 CRITICAL_INSTRUCTIONS:
-1.CODE_SYNTAX_CORRECT_FUNC_SELF_CONTAINED.
+1.CODE_SYNTAX_CORRECT_FUNC_SELF_CONTAINED_SCHEMA_WILL_BE_GIVEN_AS_INSTANCED_DATACLASS.
 2.NO_ADD_TEXT_OR_EXPLANATION_OUTSIDE_THE_STRICT_OUTPUT_JSON.
-3.NB_CODE_SIG_MUST_BE_def generate_neighbour(solution) -> ("NB_Type", "Movement_Type"):
+3.NB_CODE_SIG_MUST_BE_def generate_neighbour(solution,schema) -> ("NB_Type", "Movement_Type"):
 4.GENERATED_CODE_MUST_BE_COMPATIBLE_WITH_SAMPLE_SOL
 5.CODE_KEYS_MUST_INCLUDE_IMPORTS.
-6.NO_GLOBAL_VAR_REFERENCE_OR_DEFINITION_PROBLEM_DATA_MUST_BE_INTERNAL.
+6.NO_GLOBAL_VAR_REFERENCE_OR_DEFINITION_PROBLEM_DATA_MUST_BE_EXTRACTED_FROM_SCHEMA_DATACLASS.
 7.EXTERNAL_DATA_MUST_BE_PASSED_AS_ARGUMENT_DATA_MUST_BE_ENCODED_OR_EMBEDDED.
                         
 INSPIRATIONS:
@@ -176,16 +224,25 @@ $Feedback
 #4.SUGGEST_SPECIFIC_IMPROVEMENTS.EX: "R_STR_INADEQUATE:Binary string causing poor exploration. Recommend a permutation."
 feedbackTemplate= Template("""TASK:GENERATE_FEEDBACK_FOR_COMPONENT_REFINEMENT 
 FEEDBACK_INSTRUCTIONS:
-0.NON_FUNCTIONAL_CODE_FORBIDDEN_LOCAL_SOLVER_ERRROS_MUST_BE_CORRECTED_FIRST
+0.LOCAL_SOLVER_ERRORS_MUST_BE_CORRECTED_FIRST
 1.GENERATE_CRITICAL_FEEDBACK.FOCUS_ON_WEAKNESSES_AND_IMPROVEMENTS.AVOID_POSITIVE_REINFORCEMENT.
 2.FORMAT_AS_KEY_VALUE_PAIRS.EX: "E_CODE_PARSE_ERROR: Solution is string, while E_CODE expects an array"
 3.PINPOINT_SPECIFIC_COMPONENT_FLAWS_SUGGEST_SPECIFIC_IMPROVEMENTS_TO_FLAWS. MAXIMUM_4_ITEMS_ALLOWED_PRIORIZE_COMPATIBILITY_OF_COMPONENTS_WITH_LOCAL_SOLVER
 4.KNOWN_RANDOM_SOLUTION_AND_VALUE_GIVEN_USE_PYTHON_TOOL_TO_EVALUATE_COMPONENTS_TO_ASSERT_CORRECTNESS
 5.LOCAL_SOLVER_DESIGNED_FOR_EVALUATION_EXTRA_OUTPUTS_ARE_EXPECTED
 6.CODE_MUST_BE_COMPATIBLE_WITH_SAMPLE_SOLUTION_AND_LOCAL_SOLVER
-PROBLEM_DEF:
+7.LOCAL_SOLVER_CANNOT_EXTRACT_PROBLEM_DATA_FROM_SCHEMA_FUNCTIONS_MUST_DO_SO_INSTEAD
+PROBLEM_SCHEMA:
 ---
-$problema
+$schema
+---
+PROBLEM_OBJECTIVE:
+---
+$objective
+---
+PROBLEM_CONSTRAINTS:
+---
+$constraints
 ---
 TARGET_HEURISTIC_GENERAL_SIGNATURE= "def Heuristic(currentSolution,best, best_score, generate_neighbour, evaluate_solution, perturb_solution, other_params)".                       
 COMPONENTS:
@@ -220,18 +277,22 @@ def generarStrings(dataframe):
         return  "\n".join(dataframe['Text'].astype(str).tolist())
     else: return f"{len(dataframe)} items found."
 
-def generateEvalPrompt(problemaID, inspiraciones, samplesol):
+def generateEvalPrompt(problemaID, schema,objetivo, restricciones, samplesol):
     prompt = templateEval.safe_substitute(
-        problema=inspiraciones,
+        schema = schema,
+        objective = objetivo,
+        constraints = restricciones,
         sampleSol = samplesol, 
         Inspirations = 'NA'
     ) 
     return prompt
 #Updatea el prompt, assume una sola fila por version. 
 
-def updateEvalPrompt(defProblema, componentes, resultados, feedback,samplesol):
+def updateEvalPrompt(schema,objetivo, restricciones, componentes, resultados, feedback,samplesol):
     prompt = templateEvalUpdate.safe_substitute(
-        problema = defProblema,
+        schema = schema,
+        objective = objetivo,
+        constraints = restricciones,
         sampleSol = samplesol,
         Inspirations = 'NA',
         Resultados=resultados,
@@ -239,18 +300,22 @@ def updateEvalPrompt(defProblema, componentes, resultados, feedback,samplesol):
     )
     return prompt
 
-def generateNBPrompt(problemaID, inspiraciones,samplesol):
+def generateNBPrompt(problemaID, schema,objetivo, restricciones,samplesol):
     prompt = templateNB.safe_substitute(
-         problema=inspiraciones,
+        schema = schema,
+        objective = objetivo,
+        constraints = restricciones,
         sampleSol = samplesol, 
         Inspirations = 'NA'
     ) 
     return prompt
 #Updatea el prompt, assume una sola fila por version. 
 
-def updateNBPrompt(defProblema, componentes, resultados, feedback,samplesol):
+def updateNBPrompt(schema,objetivo, restricciones, componentes, resultados, feedback,samplesol):
     prompt = templateNBUpdate.safe_substitute(
-        problema = defProblema,
+        schema = schema,
+        objective = objetivo,
+        constraints = restricciones,
         sampleSol = samplesol,
         Inspirations = 'NA',
         Resultados=resultados,
@@ -259,18 +324,22 @@ def updateNBPrompt(defProblema, componentes, resultados, feedback,samplesol):
     return prompt
 
 
-def generatePerturbPrompt(problemaID, inspiraciones, samplesol):
+def generatePerturbPrompt(problemaID, schema,objetivo, restricciones, samplesol):
     prompt = templatePerturb.safe_substitute(
-        problema=inspiraciones,
+        schema = schema,
+        objective = objetivo,
+        constraints = restricciones,
         sampleSol = samplesol, 
         Inspirations = 'NA'
     ) 
     return prompt
 #Updatea el prompt, assume una sola fila por version. 
 
-def updatePerturbPrompt(defProblema, componentes, resultados, feedback, samplesol):
+def updatePerturbPrompt(schema,objetivo, restricciones, componentes, resultados, feedback, samplesol):
     prompt = templatePerturbUpdate.safe_substitute(
-        problema = defProblema,
+        schema = schema,
+        objective = objetivo,
+        constraints = restricciones,
         sampleSol = samplesol,
         Inspirations = 'NA',
         Resultados=resultados,
@@ -319,9 +388,9 @@ def sampleComponenteDB(componenteDB, problemaID,version,seed):
     return pd.DataFrame([datosComponentes])
 
 ## Feedback tiene que estar enfocado en un solo set de componentes a la vez. El ultimo que fue generado
-def generateFeedbackPrompt(defProblema, Eval, Nb, Perturb, SampleSol, resultadosSA, resultadosILS, resultadosTS, knownSol, knownObj):
+def generateFeedbackPrompt(schema,objetivo, restricciones, Eval, Nb, Perturb, SampleSol, resultadosSA, resultadosILS, resultadosTS, knownSol, knownObj):
     prompt = feedbackTemplate.safe_substitute(
-        problema=defProblema, 
+        problema=schema, 
         Eval=Eval, 
         NB=Nb,
         perturb=Perturb, 
