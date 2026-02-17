@@ -6,5 +6,6 @@ venv/
 .venv/
 /figuras
 /figuras_globales
-/Data/Psinger_dataset
+/Data/NL
+/Data/Tests
 tablasLatex.tex

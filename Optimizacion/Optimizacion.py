@@ -2,7 +2,7 @@ import ast
 import time
 from typing import Any, Callable, Dict, Tuple,List, Union
 from dataclasses import make_dataclass
-from Instancias import InstanciaEHOP,DataLoader
+from Instancias import NLInstance,DataLoader
 from Generador import generador
 from .PromptSamplerOP import *
 import Heuristicas.IteratedLocalSearch

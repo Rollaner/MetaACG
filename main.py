@@ -32,7 +32,7 @@ def main():
     load_dotenv()
     #Modificacion para pruebas, prepara modo batch por defecto. Estas lineas se tienen que eliminar cuando se empieze a optimizar
     if len(sys.argv) == 1:
-        sys.argv.extend(['knapsack_hard_dataset_in_house_24_11', '-o'])
+        sys.argv.extend(['knapsack_hard_dataset_in_house_4_0', '-p'])
     pathDB= os.path.join(os.path.dirname(__file__), 'Data')
     #Fin modificacion para pruebas
     os.makedirs(pathDB, exist_ok=True)
@@ -51,7 +51,7 @@ def main():
     parser = argparse.ArgumentParser()
     # Este no tiene flag (-  o bien --). Es posicional. Para referencia futura: --help pone los posicionales primero
     parser.add_argument('problema_ID', nargs='?',default=None,help="ID del problema a optimizar: Formato: Tipo_dataset_ID, IDs son equivalentes al nombre de carpeta que contiene los datos de la instancia, incompatible con '-b/--batch'")
-    parser.add_argument('-t', '--type', type=str, choices=['K','GC','U','K-I', 'GC-I'], help='Tipo de problema para procesamiento en Batch. (K)napsack, (GC) Graph Coloring')
+    parser.add_argument('-t', '--type', type=str, choices=instancias.getClaves().keys(), help='Tipo de problema para procesamiento en Batch.')
     parser.add_argument('-b', '--batch', action= 'store_true', dest='batch',help='Realizar operaciones con todos los datos y problemas disponibles de forma automatica')
     parser.add_argument('-p', '--prep',action='store_true', dest='prep', help='Realiza preparacion de problemas en batch, no optimiza')
     parser.add_argument('-o', '--opt',action='store_true', dest='opt', help='Solo optimizar, pero espera preparacion previa- Usar despues the -p o --prep. sin solucion conocida')

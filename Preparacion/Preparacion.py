@@ -1,6 +1,6 @@
 # Modulo integrador, contiene los loops de la arquitectura general
 
-from Instancias import InstanciaEHOP,DataLoader
+from Instancias import NLInstance,DataLoader
 from Generador import generador
 from .PromptSamplerP import *
 import time
@@ -43,7 +43,7 @@ def prepararSinDefinir(instancias:DataLoader,llms:generador, path, tipo:str):
         guardarResultados(datos, header, path)
     print("Fin proceso de definicion matematica")
 
-def extraerProblema(llms,instancia:InstanciaEHOP):
+def extraerProblema(llms,instancia:NLInstance):
     ## Generar prompts con PromptSamplerDM
     prompt = generateSeedPrompt(instancia.problem)
     ## Prompt con tipo de problema. Este es menos exigente en las capacidades de razocinio de la LLM. Servira para pruebas a futuro
@@ -53,7 +53,7 @@ def extraerProblema(llms,instancia:InstanciaEHOP):
     return respuesta
 
 
-def evaluarExtraccion(llms,instancia:InstanciaEHOP, respuesta):
+def evaluarExtraccion(llms,instancia:NLInstance, respuesta):
     valores = []
     for valor in respuesta.split(','):
         valores.append(valor.strip('"'))
@@ -64,7 +64,7 @@ def evaluarExtraccion(llms,instancia:InstanciaEHOP, respuesta):
     feedback = llms.generarFeedback(prompt)
     return feedback
 
-def refinarDescripcion(llms,instancia:InstanciaEHOP,feedback:str):
+def refinarDescripcion(llms,instancia:NLInstance,feedback:str):
     prompt = updatePrompt(instancia.problem, instancia.problemType,instancia.objectiveScore,feedback)
     respuesta = llms.generarDefinicion(prompt)
     return respuesta
