@@ -26,22 +26,31 @@ templateExtract = Template(
     """)
 
 templateConvert = Template(
-    """TASK: CONVERT_TEST_DATA
-    TARGET_SCHEMA:
+    """TASK: CONVERT_EXTRACTED_DATA_INTO_STANDARD_FORMAT_DATACLASS
+    DATA_ROLES:
     ----
-    $Schema
+    $roles
     ----
-    EXAMPLE_INPUT:
+    EXTRACTED_DATA:
     ----
-    $Input
+    $extractedData
     ----
-    OUTPUT_FORMAT_STRICT: PYTHON_CODE_SINGLE_FUNCTION, EX: Transform(input) -> Output:Schema
+    STANDARD_FORMAT_SCHEMA:
+    ----
+    $schema
+    ----
+    OUTPUT_FORMAT_STRICT: PYTHON_CODE_SINGLE_FUNCTION, EX: Transform(extractedData,standardDataclass) -> Output:Schema
     
     CRITICAL_INSTRUCTIONS:
-    1. INPUT_CLASS_STRUCTURE_IS_FINAL_BUT_CONTENTS_VARY
-    2. TARGET_SCHEMA_IS_FINAL
+    1. SOLUTION_MUST_REMAIN_DEFAULT_IF_NOT_EXPLICITLY_PROVIDED
+    2. STANDARD_FORMAT_IS_FINAL_
     3. CODE_MUST_BE_COMPATIBLE_WITH_PYTHON_EVAL()_or_EXEC()
-    """
+    4. EXTRACTEDDATA_PROVIDED_AS_RAW_STRING
+    5. STANDARD_FORMAT_DATACLASS_HAS_ALL_FIELDS_OPTIONAL_OR_DEFAULTED; DO_NOT_INSTANTIATE_ONLY_MODIFY
+    6. AVOID_EXPLANATION_OR_COMMENTS
+    7. USE_DIRECT_ATTRIBUTE_ASSIGNMENT_ONLY
+    8. NO_CONDITIONAL_LOGIC_ON_TYPES
+    9. MAPPING_ONLY"""
 )
 
 templateUpdate= Template("""TASK: EXTRACT_PROBLEM_DATA
@@ -71,7 +80,7 @@ templateUpdate= Template("""TASK: EXTRACT_PROBLEM_DATA
 
 feedbackTemplate= Template("""TASK:GENERATE_FEEDBACK 
 FEEDBACK_INSTRUCTIONS:
-1.GENERATE_CRITICAL_FEEDBACK.FOCUS_ON_WEAKNESSES_AND_IMPROVEMENTS.AVOID_POSITIVE_REINFORCEMENT.USE_CLASIFICATIONS: DATA_ERROR, LOGIC_ERROR, RESULTS_NOT_CONSISTENT
+1.GENERATE_CCONSTRUCTIVE_FEEDBACK.USE_CLASIFICATIONS: DATA_ERROR, LOGIC_ERROR, RESULTS_NOT_CONSISTENT
 2.FORMAT_AS_KEY_VALUE_PAIRS.EX: "DATA_ERROR: Proposed functions do not match the values given in the problem definition."
 3.PINPOINT_SPECIFIC_MATH_FLAWS.EX: "LOGIC_ERROR: Operator in objective function not aligned with problem def, Suggest operator change in line: X."
 4.LOCAL_SOLVERS_PROVIDE_GROUND_TRUTH: EVALUATION_FUNCTION should provide the means to verify expected result of provided random solution.  Optimality is obtained from local solvers with ast_eval() dynamic compiling 
@@ -110,8 +119,8 @@ def generateSeedPrompt(problemaSample:str):
     prompt = templateExtract.safe_substitute(problema=problemaSample, inspirations=inspiraciones) 
     return prompt
 
-def generateConverterPrompt(schema,input):
-    prompt = templateConvert.safe_substitute(Schema = schema, Input = input)
+def generateConverterPrompt(dataRoles,exampleInput,schema):
+    prompt = templateConvert.safe_substitute(roles = dataRoles, extractedData = exampleInput, schema = schema,)
     return prompt
 
 def updatePrompt(problemaSample:str, tipoProblema:str, solucionParseada, feedback:str):

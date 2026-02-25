@@ -1,17 +1,20 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+import inspect
 import time
 from typing import List, Tuple
-import deprecated
 
 @dataclass
 class InstanciaPruebaK:
-    length: int
-    values: tuple[int,...]
-    weights: tuple[int,...]
-    solution: tuple[int,...]
-    score: int
-    capacity: int
-    time: float
+    length: int = 0
+    values: list[int] = field(default_factory=list)
+    weights: list[int] = field(default_factory=list)
+    solution: list[int] = field(default_factory=list)
+    score: int = 0
+    capacity: int = 0
+    time: float = 0.0
+
+def getSchema():
+    return inspect.getsource(InstanciaPruebaK), InstanciaPruebaK, InstanciaPruebaK()
 
 def cargarTest(dataTestStore, csv):
     with open(csv, 'r') as file: 
@@ -61,7 +64,6 @@ def cargarKnapsackEHOP(data):
             weights.append(int(parts[2]))
             idx += 1
         capacity = int(lineas[idx])
-        idx += 1
         greedySolution, greedyScore,greedyTime = generarSolucionGreedyK(n,values,weights,capacity)
         solution, value, DPTime = generarSolucionDPK(n, values, weights, capacity)
         return solution, value, DPTime, n, sum(values)
@@ -102,7 +104,7 @@ def generarSolucionGreedyK(nItems,values, weights, capacity):
 
 def generarSolucionDPK(nItems,values, weights, capacity):
     startTime = time.perf_counter()  
-    scores = [[-1 for _ in range(capacity+1)] for _ in range(nItems+1)]
+    scores = [[-1 for _ in range(capacity+1)] for _ in range(nItems+1)] #genera nItems+1 filas, y capacity+1 columnas
     scores = exploracionRecursiva(scores,nItems,capacity,values,weights)
     solucion = []
     solucion = construirSolucion(nItems,capacity,scores,weights,solucion)
@@ -125,7 +127,7 @@ def exploracionRecursiva(valor, nItems, capacity, values, weights):
     return valor
     
 def construirSolucion(nItems,capacity,tablaValores, weights, solucion):
-    if(nItems == 0): return 
+    if(nItems == 0 or capacity < 0): return 
     if(tablaValores[nItems][capacity] > tablaValores[nItems-1][capacity]):
         construirSolucion(nItems-1, capacity-weights[nItems-1],tablaValores,weights,solucion)
         solucion.append(nItems-1)

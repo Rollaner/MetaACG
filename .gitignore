@@ -9,3 +9,8 @@ venv/
 /Data/NL
 /Data/Tests
 tablasLatex.tex
+/figuras_por_iteracion
+Data/backup
+Data/*.jsonl
+Data/problemas-K.jsonl
+Data/dataStruct-SR-K.jsonl

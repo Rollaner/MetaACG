@@ -30,6 +30,7 @@ class DataLoader:
         self.dataTestStore: dict[str, any] = {}
         self._modulos: dict[str, object] = {}
         self.claves: dict[str,str] = {}
+        
 
     def getClaves(self):
         return self.claves
@@ -51,6 +52,20 @@ class DataLoader:
             )
         return self._modulos[tipoProblema]
 
+    def getSchema(self, tipoProblema):
+        modulo = self._getModulo(self.getNombreCompleto(tipoProblema))
+        return modulo.getSchema()
+
+    def getNombreCompleto(self,tipoProblema):
+        if tipoProblema in self.claves:
+            nombreCompleto = self.claves[tipoProblema]
+        elif tipoProblema in self.claves.values():
+            nombreCompleto = tipoProblema
+        else:
+            print(f"Problema '{tipoProblema}' no reconocido. Disponibles: {list(self.claves.keys())}")
+            return
+        return  nombreCompleto
+
     def prepararClaves(self,archivos):
         claves = {}
         for archivo in archivos:
@@ -65,16 +80,8 @@ class DataLoader:
         listaModulos = self.cargarModulos()
         self.prepararClaves(listaModulos)
         datasets = ["hard_dataset", "random_dataset"]
-
-        if tipoProblema in self.claves:
-            nombreCompleto = self.claves[tipoProblema]
-        elif tipoProblema in self.claves.values():
-            nombreCompleto = tipoProblema
-        else:
-            print(f"Problema '{tipoProblema}' no reconocido. Disponibles: {list(self.claves.keys())}")
-            return
-        self.cargarPruebas(nombreCompleto)
-    
+        nombreCompleto = self.getNombreCompleto(tipoProblema)
+        self.cargarPruebas(nombreCompleto),
         for tipoDataset in datasets:
             CSV = os.path.join(self.NLPath, nombreCompleto, tipoDataset)
             self.procesarDatos(nombreCompleto, tipoDataset, CSV)
@@ -172,7 +179,6 @@ class DataLoader:
                     solutionContent = f"{objectiveScore}\n{", ".join(map(str, parsedSolution))}"
                     with open(archivoSolucion,"w") as f:
                         f.write(solutionContent)
-                        f.write(", ".join(map(str, parsedSolution)))
                 key=tipoProblema+'_'+tipoDataset+'_'+claveInstancia+'_'+traje+'_'+subtipo
                 record = NLInstance(
                     problemType=tipoProblema, #Tipo del problema: TSP, GC, o Knapsack
@@ -200,6 +206,9 @@ class DataLoader:
         instancia for key, instancia in self.dataStore.items() 
         if key.startswith(claveInstancia)
         ]
+
+    def getInstancia(self, claveInstancia: str):
+        return self.dataStore.get(claveInstancia)
 
     def getProblemaInstancia(self, claveInstancia: str) -> str | None:
         record = self.dataStore.get(claveInstancia)

@@ -1,6 +1,6 @@
 import random
 
-def HC(solucionActual, mejorSolucion, mejorCosto,datosProblema, funcionVecindad, funcionPerturbacion, funcionEvaluacion, iteraciones, tasaAceptacion):
+def HC(solucionActual, mejorSolucion, mejorCosto,datosProblema, funcionVecindad, funcionPerturbacion, funcionEvaluacion, iteraciones):
     i = 0
     solucionActual, _ = funcionVecindad(solucionActual,datosProblema)
     costoActual = funcionEvaluacion(solucionActual,datosProblema)

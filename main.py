@@ -5,6 +5,7 @@ import sys
 import time
 from dotenv import load_dotenv
 import pandas as pd
+import Instancias
 import Plotter
 import numpy as np
 #Estos estan aqui porque el codigo generado por IA tiende a necesitarlos. Como no pueden importar nada ellas, esto evita que exploten los solver
@@ -25,18 +26,18 @@ from Optimizacion import Optimizacion
 def main():
     semilla = 1234
     iteraciones = 3 #Genracion se atasca muy seguido. Se prueba sin reiniciar, luego probabos con reinicio. 
-    filaInicio = 3
     filaMultiplo = 3
     tipoProblema = "K"
     #Inicializar datos
     load_dotenv()
     #Modificacion para pruebas, prepara modo batch por defecto. Estas lineas se tienen que eliminar cuando se empieze a optimizar
     if len(sys.argv) == 1:
-        sys.argv.extend(['knapsack_hard_dataset_in_house_4_0', '-p'])
+        sys.argv.extend(['knapsack_hard_dataset_in_house_24','-plt'])
     pathDB= os.path.join(os.path.dirname(__file__), 'Data')
     #Fin modificacion para pruebas
     os.makedirs(pathDB, exist_ok=True)
     problemasPath = os.path.join(pathDB, f'problemas-{tipoProblema}.jsonl')
+    #problemasPath = os.path.join(pathDB, f'problemas-{tipoProblema-subtipoProblema}.jsonl')
     dataStructPath = os.path.join(pathDB, f"dataStruct-SR-{tipoProblema}.jsonl")
     componentesPath = os.path.join(pathDB, f'componentes-SR-{tipoProblema}.jsonl')
     feedbackPath = os.path.join(pathDB,f'feedback-SR-{tipoProblema}.jsonl')
@@ -46,6 +47,7 @@ def main():
     resultPathNP = os.path.join(pathDB,f'resultados-SR-{tipoProblema}-NP.jsonl')
     instancias = DataLoader()
     instancias.cargarProblemas(tipoProblema)
+    schemaEstandar, dataclassProblema, dataclassProblemaInst = instancias.getSchema(tipoProblema)
     llms = generador()
     llms.cargarLLMs()
     parser = argparse.ArgumentParser()
@@ -65,21 +67,24 @@ def main():
     if args.plot:
         problemaDB = pd.read_json(problemasPath,lines=True)
         if os.path.exists(componentesPath) and os.path.exists(resultPath) and os.path.exists(feedbackPath):
-            resultDB = cargarResultados(os.path.join(pathDB,'resultados-SR-K.jsonl'))
-            resultControlDB = cargarResultados(os.path.join(pathDB,'resultados-SR-K-SD.jsonl'))
-            resultUDDB = cargarResultados(os.path.join(pathDB,'resultados-SR-K-PR.jsonl'))
-            resultGCDB = cargarResultados(os.path.join(pathDB,'resultados-SR-GC.jsonl'))
-            resultGCDBH = cargarResultados(os.path.join(pathDB,'resultados-SR-GC-H.jsonl'))
-            resultKDBH = cargarResultados(os.path.join(pathDB,'resultados-SR-K-H.jsonl'))
-            resultGCDBHUD = cargarResultados(os.path.join(pathDB,'resultados-SR-GC-HUD.jsonl'))
-            output = os.path.join(pathDB,'tablasLatex.tex')
-            #fallosCD, dfProcesadoCD, desempeñoPorSolverCD, metricasRendimientoCD = procesarResultados(resultKDB, output,"CDK","K")
+            resultKDB = cargarResultados(os.path.join(pathDB,'resultados-SR-K.jsonl'))
+            #resultControlDB = cargarResultados(os.path.join(pathDB,'resultados-SR-K-SD.jsonl'))
+            #resultUDDB = cargarResultados(os.path.join(pathDB,'resultados-SR-K-PR.jsonl'))
+            #resultGCDB = cargarResultados(os.path.join(pathDB,'resultados-SR-GC.jsonl'))
+            #resultGCDBH = cargarResultados(os.path.join(pathDB,'resultados-SR-GC-H.jsonl'))
+            #resultKDBH = cargarResultados(os.path.join(pathDB,'resultados-SR-K-H.jsonl'))
+            #resultGCDBHUD = cargarResultados(os.path.join(pathDB,'resultados-SR-GC-HUD.jsonl'))
+            output = os.path.join(pathDB,'tablasLatex-2.tex')
+            dfProcesadoCD,fallosCD, desempeñoPorSolverCD, metricasRendimientoCD = procesarResultados(resultKDB, output,"CE-K", instancias)
+            procesarResultadosPorIteracion(resultKDB,dfProcesadoCD,output,"CE-K", instancias, iteraciones)
+            Plotter.graficarMejoraPorIteracion(calcularMejoraPorIteracion(dfProcesadoCD, iteraciones), "CE-K")
+            
             #fallosKH, dfProcesadoKH, desempeñoPorSolverKH, metricasRendimientoKH = procesarResultados(resultKDBH, output,"CDK-H","KH", problemaDB)
             #fallosC, dfProcesadoC, desempeñoPorSolverC, metricasRendimientoC = procesarResultados(resultControlDB, output,"SDK","K")
             #fallosUD, dfProcesadoUD, desempeñoPorSolverUD, metricasRendimientoUD = procesarResultados(resultUDDB, output,"UDK","K")
             #fallosGC, dfProcesadoGC, desempeñoPorSolverGC, metricasRendimientoGC = procesarResultados(resultGCDB, output,"CDGC","GC")
 
-            fallosGCH, dfProcesadoGCH, desempeñoPorSolverGCH, metricasRendimientoGCH = procesarResultados(resultGCDBH, output,"CDGC-H-L","GCH", problemaDB)
+            #fallosGCH, dfProcesadoGCH, desempeñoPorSolverGCH, metricasRendimientoGCH = procesarResultados(resultGCDBH, output,"CDGC-H-L","GCH", problemaDB)
             pd.set_option('display.float_format', lambda x: '%.0000f' % x) #Poco elegante pero funciona
             #compararResultados(metricasRendimientoCD,metricasRendimientoC,desempeñoPorSolverCD, desempeñoPorSolverC,output)
             #Necesita ser cambiado. De momento la comparacion FP y Control esta hardcodeada
@@ -110,7 +115,7 @@ def main():
         print(problema_ID)
         if args.prep:
             print("Datos inicializados. Iniciando preparación")
-            prepararIndividual(instancias,llms,problemasPath,dataStructPath,problema_ID) #NGuarda Datos directamente. Se usa el archivo CSV para pasar datos a traves del sistema
+            prepararIndividual(instancias,llms,problemasPath,dataStructPath,problema_ID,schemaEstandar) #NGuarda Datos directamente. Se usa el archivo CSV para pasar datos a traves del sistema
             #probar los dataStruct para saber si funcionan bien por medio de hacerlos cargar cada experimento?. 
         if args.opt:
                 componenteDB, feedbackDB, resultDB = cargarDBs(componentesPath,resultPath,feedbackPath)
@@ -125,15 +130,17 @@ def main():
                 for problema in filas_serie.itertuples(index=False):
                     problema_ID = problema.Instancia
                     filas_struct = dataStructDB[dataStructDB['Instancia'] == problema_ID].iloc[0]
-                    schema = problema.Respuesta
-                    convertidorText = filas_struct['FuncionDeCarga']
-                    if isinstance(schema, str):
-                        schema = json.loads(schema)
-                    dataClass, problemData, convertidor = Optimizacion.cargarDatosProblema(schema,convertidorText)
-                    if(not dataClass or not problemData):
+                    schemaGenerado = problema.Respuesta
+                    convertidorText = filas_struct['FuncionDeCarga'] 
+                    try:
+                        problemData = Optimizacion.cargarDatosProblema(schemaGenerado,dataclassProblema,convertidorText)
+                    except Exception as e: #En caso de que use la instancia directamente, no hay forma de saber que va a intentar
+                         problemData = Optimizacion.cargarDatosProblema(schemaGenerado,dataclassProblemaInst,convertidorText)
+                    if(not problemData):
                         print(f"Error al inicializar datos del problema {problema_ID}, revise como fue preparado antes de continuar")
                         continue;
-                    componenteDB, feedbackDB, resultDB = Optimizacion.optimizarProblemaPreparadoDB(problema,schema,dataClass,problemData,instancias.getTestData(), convertidor, componenteDB,resultDB,feedbackDB, iteraciones)
+                    print(problemData)
+                    componenteDB, feedbackDB, resultDB = Optimizacion.optimizarProblemaPreparadoDB(problema,schemaEstandar,problemData, componenteDB,resultDB,feedbackDB, iteraciones)
                     #crear funcion para probar componentes generados para el problema.
                     componenteDB.to_json(componentesPath,orient='records',lines=True)
                     feedbackDB.to_json(feedbackPath,orient='records',lines=True)
@@ -195,8 +202,8 @@ def main():
     #resultDB.to_json(resultPath,lines=True)
     return 0
 
-def prepararIndividual(instancias,llms,problemasPath, dataStructPath,instancia):
-    respuesta,feedback, convertidor = Preparacion.extraerIndividual(instancias,llms,problemasPath, dataStructPath, instancia)
+def prepararIndividual(instancias,llms,problemasPath, dataStructPath,instancia, schema):
+    respuesta, feedback, convertidor = Preparacion.extraerIndividual(instancias,llms,problemasPath, dataStructPath, instancia,schema)
     print("RESPUESTA final: \n" + respuesta + "---------------------- \n FEEDBACK mas reciente: \n" + feedback)
     return respuesta,feedback, convertidor
 
@@ -358,18 +365,161 @@ def compararResultados(metricasRendimiento1, metricasRendimiento2,desempeñoPorS
                 f.write('----------------------\n\n')
                 f.write(latexFish)
 
-def procesarResultados(resultados:pd.DataFrame,output, pipeline, problem, problemas:pd.DataFrame = None):
+def compararSoluciones(solucionGenerada, solucionInstancia) -> bool:
+    try:
+        final_solution = solucionGenerada[2]
+        return list(final_solution) == list(solucionInstancia)
+    except (TypeError, IndexError):
+        return False
+
+def procesarResultadosPorIteracion(resultados: pd.DataFrame,dfProcesado: pd.DataFrame, output, pipeline, instancias: DataLoader, iteraciones):
+    filasPorIteracion = 4
+    for iteracion in range(iteraciones):
+        subset = resultados.groupby('ID_Problema').apply(
+            lambda g: g.iloc[iteracion * filasPorIteracion : (iteracion + 1) * filasPorIteracion]
+        ).reset_index(drop=True)
+
+        if subset.empty:
+            print(f"[iteracion {iteracion + 1}]: Sin datos, ignorando.")
+            continue
+        subset = subset.groupby('ID_Problema').filter(lambda g: len(g) == filasPorIteracion)
+
+        if subset.empty:
+            print(f"[iteracion {iteracion +1}]: Todos los grupos incompletos, ignorando.")
+            continue
+
+        print(f"\n{'='*40}")
+        print(f"  Resultados iteracion {iteracion +1}")
+        print(f"{'='*40}")
+        procesarResultados(subset, output, f"{pipeline}_iteracion_{iteracion +1}", instancias)
+
+def calcularMejoraPorIteracion(dfProcesado: pd.DataFrame, iteraciones: int) -> dict[str, pd.DataFrame]:
+    ## probablemente deberia convertir esto a algo dinamico, contando la cantidad de heuristicas cargadas.
+    filasporiteracion = 4
+    
+    def _registrar(contadores: dict, existe_t: bool, es_valido_t: bool, es_optimo_t: bool, 
+                        existe_sig: bool, es_valido_sig: bool, es_optimo_sig: bool):
+    
+    # 1. SUCCESS CASES (Improvements)
+    # Was not optimal (either invalid or unoptimal) -> became optimal
+        if not es_optimo_t and es_optimo_sig:
+            contadores['Mejora'] += 1
+    # Was invalid -> became unoptimal (it now produces a numeric result)
+        elif not es_valido_t and (es_valido_sig and not es_optimo_sig):
+            contadores['Mejora'] += 1
+        
+    # 2. REGRESSION CASES
+    # Was optimal -> became unoptimal OR invalid
+        elif es_optimo_t and not es_optimo_sig:
+            contadores['Regresion'] += 1
+    # Was unoptimal -> became invalid (it broke or disappeared)
+        elif (es_valido_t and not es_optimo_t) and not es_valido_sig:
+            contadores['Regresion'] += 1
+        
+    # 3. STABLE CASES
+    # Was optimal -> stayed optimal
+        elif es_optimo_t and es_optimo_sig:
+            contadores['Estable_OK'] += 1
+    # Remained unoptimal or remained invalid
+        else:
+            contadores['Estable_Mal'] += 1
+
+    metaheuristicas = dfProcesado['Metaheuristica'].unique()
+    registros = {m: [] for m in metaheuristicas}
+    registros['General'] = []
+
+
+    dummy_fallos = {'Total Fallos': 0, 'Failure_to_evaluate': 0, 'Failure_to_run_target_heuristic': 0, 
+                    'Failure_to_load': 0, 'Otros': 0, 'Total Exitos': 0}
+
+    grouped = dfProcesado.groupby('ID_Problema')
+
+    for iteracion in range(iteraciones - 1):
+        subset_actual = grouped.apply(
+            lambda g: g.iloc[iteracion * filasporiteracion : (iteracion + 1) * filasporiteracion],
+            include_groups=False 
+        ).reset_index()
+
+        subset_siguiente = grouped.apply(
+            lambda g: g.iloc[(iteracion + 1) * filasporiteracion : (iteracion + 2) * filasporiteracion],
+            include_groups=False
+        ).reset_index()
+
+        contadores = {m: {'Mejora': 0, 'Regresion': 0, 'Estable_OK': 0, 'Estable_Mal': 0} for m in metaheuristicas}
+        problemas_totales = set(subset_actual['ID_Problema'].unique()) | set(subset_siguiente['ID_Problema'].unique())
+
+        for meta in metaheuristicas:
+            for problema in problemas_totales:
+                row_t = subset_actual[(subset_actual['ID_Problema'] == problema) & (subset_actual['Metaheuristica'] == meta)]
+                row_sig = subset_siguiente[(subset_siguiente['ID_Problema'] == problema) & (subset_siguiente['Metaheuristica'] == meta)]
+
+                # Helper to determine state for a single row
+                def get_state(row):
+                    if row.empty:
+                        return False, False, False # Existe, Valido, Optimo
+                    
+                    # Call your specific parser on the 'Resultados' column
+                    puntaje = parsearResultado(row['Resultados'].values[0], dummy_fallos)
+                    valido = not pd.isna(puntaje)
+                    optimo = valido and row['Solucion identica'].any()
+                    return True, valido, optimo
+
+                ex_t, val_t, opt_t = get_state(row_t)
+                ex_sig, val_sig, opt_sig = get_state(row_sig)
+
+                _registrar(contadores[meta], ex_t, val_t, opt_t, ex_sig, val_sig, opt_sig)
+
+        # Aggregate General (Dumb sum of per-metaheuristic results)
+        general_counts = {'Mejora': 0, 'Regresion': 0, 'Estable_OK': 0, 'Estable_Mal': 0}
+        for m in metaheuristicas:
+            for cat in general_counts:
+                general_counts[cat] += contadores[m][cat]
+
+        transicion = f"{iteracion}->{iteracion+1}"
+        for m in metaheuristicas:
+            registros[m].append({'Transicion': transicion, **contadores[m]})
+        registros['General'].append({'Transicion': transicion, **general_counts})
+
+    return {key: pd.DataFrame(rows) for key, rows in registros.items()}
+
+def procesarResultados(resultados:pd.DataFrame, output, pipeline, instancias:DataLoader):
     pd.set_option('display.float_format', lambda x: '%.0f' % x)
-    if problem == "GCH" or problem == "KH":
-        pd.set_option('display.max_rows', None)
-        dfaux = problemas.drop_duplicates(subset=['Instancia'], keep='first')
-        map_optimos = dfaux.set_index('Instancia')['Valor Objetivo']
-        map_resultados = dfaux.set_index('Instancia')['Resultado esperado']
-        print(dfaux)
-        resultados['Valor Optimo'] = resultados['ID_Problema'].map(map_optimos)
-        resultados['Solucion'] = resultados['ID_Problema'].map(map_resultados)
-    print(resultados['Valor Optimo'])
-    resultados['Resultados'] = resultados['Resultados'].apply(normalizar_resultado) #Convierte el resultado en algo parseable
+
+    def getScore(id_problema):
+        inst = instancias.getInstancia(id_problema)
+        return inst.objectiveScore if inst is not None else None
+
+    def getSolucion(id_problema):
+        inst = instancias.getInstancia(id_problema)
+        return inst.parsedSolution if inst is not None else None
+
+    def normalizar_resultado(x):
+        if isinstance(x, (list, dict)):
+            return x
+        if isinstance(x, str):
+            x = x.strip()
+            try:
+                return json.loads(x)
+            except json.JSONDecodeError:
+                pass
+            try:
+                return ast.literal_eval(x)
+            except (SyntaxError, ValueError):
+                return x
+        return x
+    
+    correctitud = {'Soluciones Identicas': 0,'Soluciones Distintas': 0,}
+    def verificarSolucion(row):
+        resultado = compararSoluciones(row['Resultados'], row['Solucion'])
+        if resultado:
+            correctitud['Soluciones Identicas'] += 1
+        else:
+            correctitud['Soluciones Distintas'] += 1
+        return resultado
+    
+    resultados['Valor Optimo'] = resultados['ID_Problema'].map(getScore)
+    resultados['Solucion'] = resultados['ID_Problema'].map(getSolucion)
+    resultados['Resultados'] = resultados['Resultados'].apply(normalizar_resultado)
     FallosTot = {
     'Failure_to_evaluate': 0,
     'Failure_to_run_target_heuristic': 0,
@@ -378,22 +528,24 @@ def procesarResultados(resultados:pd.DataFrame,output, pipeline, problem, proble
     'Total Fallos': 0,
     'Total Exitos': 0
     }
-    resultadosFiltrados = resultados[~resultados['ID_Problema'].str.contains('inverted', case=False, na=False)].copy() #Para compensar por error en parser de soluciones. Se eliminan los problemas invertidos
-    resultadosFiltrados['Puntaje Real'] = resultadosFiltrados['Resultados'].apply(lambda r: parsearResultado(r, FallosTot))
-    dfProcesado = resultadosFiltrados[resultadosFiltrados['Puntaje Real'].notna()].copy()
-    print(dfProcesado[['Metaheuristica', 'Resultados', 'Puntaje Real', 'Valor Optimo']])
+    resultadosAux = resultados.copy()
+    resultadosAux['Puntaje Real'] = resultadosAux['Resultados'].apply(lambda r: parsearResultado(r, FallosTot))
+    dfProcesado = resultadosAux[resultadosAux['Puntaje Real'].notna()].copy()
+    
+    ## generacion de tablas y figuras
     latex1 = dfProcesado[['Metaheuristica', 'Resultados', 'Puntaje Real', 'Valor Optimo']].to_latex(index=False, column_format='lrrrr', caption=f'Resultados del procesado {pipeline}.', label=f'tab:{pipeline}_resultados_generales' )
     for key, count in FallosTot.items():
         if key not in ['Total Fallos', 'Total Exitos']:
             print(f"* {key}: {count}")
-    totalExperimentos =  len(resultadosFiltrados)
+    totalExperimentos =  len(resultadosAux)
     tasaDeFallos = FallosTot['Total Fallos'] / totalExperimentos
     print(f"Tasa de Fallos {tasaDeFallos:.2%}")
     dfProcesado['Diferencia Absoluta'] = (dfProcesado['Puntaje Real']-dfProcesado['Valor Optimo']).abs()
-    if problem == "K" or problem == "KH":
-        dfProcesado['Diferencia Absoluta'] = (dfProcesado['Puntaje Real']+dfProcesado['Valor Optimo']).abs() #En base a revision manual, en el caso de los problemas de Knapsack el Puntaje real esta siempre cambiado de signo, pero colapsa a la respuesta optima igual. Se cambio el signo del puntaje real a negativo para tomar en cuenta esto
     dfProcesado['Diferencia Porcentual'] = (dfProcesado['Diferencia Absoluta']/dfProcesado['Valor Optimo']).abs()*100 #Valor optimo de EHOP nunca es cero
-    resultadosFiltrados['Mascara Exito'] = resultadosFiltrados['Puntaje Real'].notna()
+    
+    dfProcesado['Solucion identica'] = dfProcesado.apply(verificarSolucion, axis=1)
+    
+    resultadosAux['Mascara Exito'] = resultadosAux['Puntaje Real'].notna()
     metricasRendimiento = dfProcesado.groupby('Metaheuristica').agg(
         exitosTotales = ('Puntaje Real', 'count'),
         Promedio_Error_Abs =('Diferencia Absoluta', 'mean'),
@@ -411,16 +563,24 @@ def procesarResultados(resultados:pd.DataFrame,output, pipeline, problem, proble
     print("--- Metricas estandar de desempeño ---")
     print(metricasRendimiento[['Metaheuristica','Promedio_Error_Porcentual', 'Desviacion_Estandar_Porcentual','Intervalo_de_Confianza_Error_Absoluto_Minimo','Intervalo_de_Confianza_Error_Absoluto_Maximo', 'Promedio_Error_Abs','Desviacion_Estandar_Abs', 'Intervalo_de_Confianza_Error_Porcentual_Minimo', 'Intervalo_de_Confianza_Error_Porcentual_Maximo']])
     latex2 = metricasRendimiento[['Metaheuristica','Promedio_Error_Porcentual', 'Desviacion_Estandar_Porcentual','Intervalo_de_Confianza_Error_Absoluto_Minimo','Intervalo_de_Confianza_Error_Absoluto_Maximo', 'Promedio_Error_Abs','Desviacion_Estandar_Abs', 'Intervalo_de_Confianza_Error_Porcentual_Minimo', 'Intervalo_de_Confianza_Error_Porcentual_Maximo']].to_latex(index=False, column_format='lrrrrrrrrr', caption=f'Métricas de rendimiento {pipeline}.', label=f'tab:{pipeline}_metricas' )
-    ### Revisar aqui!!!! Este es donde se rompe el codigo.
-    desempeñoPorSolver = resultadosFiltrados.groupby('Metaheuristica')['Mascara Exito'].agg(
+    
+    desempeñoPorSolver = resultadosAux.groupby('Metaheuristica')['Mascara Exito'].agg(
         TotalExperimentos='count',
         TotalExitos='sum'
     ).reset_index()
+    print(dfProcesado[['Metaheuristica', 'Resultados', 'Puntaje Real', 'Valor Optimo']])
     print("--- Desempeño por Solver ---")
     print(desempeñoPorSolver)
-    ###AQUI HAY ERROR. Corregir. Tiene que ser to total experimentos - TOTALEXITOSxSOLVER.
+    
     desempeñoPorSolver['TotalFallos'] = desempeñoPorSolver['TotalExperimentos'] - desempeñoPorSolver['TotalExitos']
     desempeñoPorSolver['Tasa de Fallo'] = desempeñoPorSolver['TotalFallos'] / desempeñoPorSolver['TotalExperimentos']
+    
+    print("---Soluciones identicas al optimo---")
+    print(f"Éxitos en la práctica: {correctitud['Soluciones Identicas']} / {len(dfProcesado)} "
+          f"({correctitud['Soluciones Identicas']/len(dfProcesado):.2%})")
+    print(f"Fallos en la práctica: {correctitud['Soluciones Distintas']} / {len(dfProcesado)} "
+          f"({correctitud['Soluciones Distintas']/len(dfProcesado):.2%})")
+
     print("--- Tasa De Fallo por solver ---")
     print(desempeñoPorSolver[['Metaheuristica', 'TotalExperimentos', 'Tasa de Fallo']].sort_values(by='Tasa de Fallo'))
     latex3 = desempeñoPorSolver[['Metaheuristica', 'TotalExperimentos', 'Tasa de Fallo']].sort_values(by='Tasa de Fallo').to_latex(index=False, column_format='lrrr', caption=f'Tasa de fallo del procesado {pipeline}.', label=f'tab:{pipeline}_fallos' )
@@ -448,7 +608,9 @@ def procesarResultados(resultados:pd.DataFrame,output, pipeline, problem, proble
         f.write(latex1);f.write('----------------------\n\n')
         f.write(latex2);f.write('----------------------\n\n')
         f.write(latex3)
-    return FallosTot, dfProcesado, desempeñoPorSolver, metricasRendimiento
+    resultadosReg = resultados.copy()
+    resultadosReg['Solucion identica'] = resultadosReg.apply(verificarSolucion,axis=1)
+    return resultadosReg,FallosTot, desempeñoPorSolver, metricasRendimiento
 
 def parsearResultado(resultado, Fallos):
     if isinstance(resultado, str):
@@ -463,14 +625,13 @@ def parsearResultado(resultado, Fallos):
         else:
             Fallos['Otros'] += 1
         return np.nan
-
+    #por si acaso. Es improbable que este sea una tupla o un array de np, pero las LLM son poco confiables
     if isinstance(resultado, tuple):
         resultado = list(resultado)
     elif isinstance(resultado, np.ndarray):
         resultado = resultado.tolist()
-
+        
     if isinstance(resultado, list):
-
         for elem in resultado:
             if isinstance(elem, dict):
                 if 'bestScore' in elem:
@@ -479,7 +640,6 @@ def parsearResultado(resultado, Fallos):
                     score = elem['currentScore']
                 else:
                     continue
-
                 if isinstance(score, numbers.Real):
                     Fallos['Total Exitos'] += 1
                     return float(score)
@@ -506,41 +666,6 @@ def parsearResultado(resultado, Fallos):
     Fallos['Otros'] += 1
     return np.nan
 
-#Porque ciertos resultados son rarificos, debido a las halucinaciones
-def normalizar_resultado(x):
-    if isinstance(x, (list, dict)):
-        return x
-    if isinstance(x, str):
-        x = x.strip()
-        try:
-            return json.loads(x)
-        except json.JSONDecodeError:
-            pass
-        try:
-            return ast.literal_eval(x)
-        except (SyntaxError, ValueError):
-            return x
-    return x
-
-# nunca se uso
-def probarCorrectitud(MejorConocida, valorMejorConocida, componentes, resultado):
-    try:
-        evaluacion = cargarComponente(componentes['EVAL_CODE'])
-        print(f"Loaded 'EVAL_CODE' into variable 'evaluate_solution'. Name: {eval.__name__}")
-    except Exception as e:
-        return(f"Failed to load EVAL_CODE: {e}")
-    try:
-        vecindad = cargarComponente(componentes['NB_CODE'])
-        print(f"Loaded 'NB_CODE' into variable 'generate_neighbour'. Name: {vecindad.__name__}")
-    except Exception as e:
-        return(f"Failed to load NB_CODE: {e}")
-    
-    objetivoErronea = 0
-    if(evaluacion(MejorConocida) != valorMejorConocida):
-        objetivoErronea = 1
-    diffConMejor = valorMejorConocida - evaluacion(resultado)
-    return
-
 def cronometrarFuncion(func: Callable, *args, **kwargs) -> tuple[float, any]:
     inicio = time.perf_counter()
     resultado = func(*args, **kwargs)
@@ -559,9 +684,6 @@ def cargarComponente(codigo: str):
         if callable(value):
             return value
     raise ValueError(f"No se encontró una función (callable) en el código cargado con exec().")
-
-
-
 
 
 main()

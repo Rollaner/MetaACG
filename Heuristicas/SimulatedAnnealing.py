@@ -2,7 +2,7 @@ import random
 import math
 
 
-def SA(solucionActual,mejor, mejorCosto,datosProblema, funcionVencindad, funcionEvaluacion, temp, minTemp, factorEnfriamiento):
+def SA(solucionActual,mejor, mejorCosto,datosProblema, funcionVencindad,funcionPerturbacion, funcionEvaluacion, temp, minTemp, factorEnfriamiento):
     mejorCosto = funcionEvaluacion(solucionActual,datosProblema)
     while(temp > minTemp):
         vecino, _ = funcionVencindad(solucionActual,datosProblema)

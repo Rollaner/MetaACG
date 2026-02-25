@@ -1,16 +1,19 @@
 from dataclasses import dataclass, field
+import inspect
 from typing import Dict, List, Set, Tuple
 
 
 @dataclass
 class InstanciaPruebaGC:
-    NoNodes: int
-    Noedges: int
-    solution: tuple[int,...]
-    score: int
-    time: float
-    adj: Dict[int, Set[int]] = field(default_factory=dict)
+    NoNodes: int = 0
+    Noedges: int = 0
+    solution: list[int] = field(default_factory=list)
+    score: int = 0
+    time: float = 0.0
+    adj: Dict[int, Set[int]] = field(default_factory=dict) 
 
+def getSchema():
+    return inspect.getsource(InstanciaPruebaGC),  InstanciaPruebaGC, InstanciaPruebaGC()
 
 def cargarTest(dataTestStore, dimacs, inverso=False):
         with open(dimacs, 'r') as f:

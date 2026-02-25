@@ -1,4 +1,5 @@
 from dataclasses import dataclass, field
+import inspect
 from typing import List, Optional, Tuple
 import numpy as np
 import tsplib95 as tsp
@@ -8,16 +9,18 @@ NAME = "TSP"
 
 @dataclass
 class InstanciaPruebaTSP:
-    name: str
-    dimension: int
-    tipoPesoAristas: str
-    formatoPesoAristas: Optional[str] = None
-    comment: Optional[str] = None
+    name: str | None = None
+    dimension: int = 0
+    tipoPesoAristas: str | None = None
+    formatoPesoAristas: Optional[str]
+    comment: Optional[str] 
     pesoAristas: np.ndarray = field(default_factory=lambda: np.array([]))
-    solution: tuple[int, ...] = field(default_factory=tuple)
-    score: float = 0.0
-    time: float = 0.0
+    solution: tuple[int] = field(default_factory=tuple)
+    score: float = 0.0 
+    time: float = 0.0 
 
+def getSchema():
+    return inspect.getsource(InstanciaPruebaTSP), InstanciaPruebaTSP, InstanciaPruebaTSP()
 
 def cargarTest(dataTestStore, tsp_file):
     with open(tsp_file, 'r') as f:

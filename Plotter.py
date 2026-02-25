@@ -3,21 +3,23 @@
 import os
 import numpy as np
 import matplotlib
+import matplotlib.patheffects
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from matplotlib.patches import Patch
 from matplotlib.ticker import MaxNLocator
 import math
 
+
+paletaDoble = ["#E99B16", "#1664E9"]                     
+paletaTriadica = ["#A61BE4", "#E4A61B", "#1BE4A6"]         
+paletaTetradica   = ["#B2DC23", "#23DCA9", "#4D23DC", "#DC2356"]  
+paletaDeBarras = paletaTriadica + paletaTetradica + paletaDoble
+
 def graficos_por_pipeline(Fallos, desempeñoPorSolver, metricasRendimiento,totalExperimentos,
                           pipeline: str,
                           output_dir: str = "figuras"):
     os.makedirs(output_dir, exist_ok=True)
-
-    paletaDoble = ["#E99B16", "#1664E9"]                     
-    paletaTriadica = ["#A61BE4", "#E4A61B", "#1BE4A6"]         
-    paletaTetradica   = ["#B2DC23", "#23DCA9", "#4D23DC", "#DC2356"]  
-    paletaDeBarras = paletaTriadica + paletaTetradica + paletaDoble
 
     # ------------------------------------------------------------------
     # 1) Pie: Tasa de fallo global (fallos vs éxitos)
@@ -139,7 +141,7 @@ def graficos_por_pipeline(Fallos, desempeñoPorSolver, metricasRendimiento,total
         plt.tight_layout()
         plt.savefig(os.path.join(
             output_dir,
-            f"{pipeline}_pie_exitos_por_solver.pdf"
+            f"{pipeline}_barras_exitos_por_solver.pdf"
         ), bbox_inches="tight")
 
         plt.close(fig)
@@ -718,4 +720,102 @@ def legendaPorBarra(ax, bars, labels, values, fmt="{:.2f}", title=None):
         ncol=min(len(legend_labels), 4),
         title=title
     )
+
+def graficarMejoraPorIteracion(tablas: dict[str, any], pipeline: str, output_dir: str = "figuras_por_iteracion"):
+    os.makedirs(output_dir, exist_ok=True)
+    colores = {
+        'Estable_OK':  paletaTetradica[0],
+        'Mejora':      paletaTetradica[1],
+        'Regresion':   paletaTetradica[2],
+        'Estable_Mal': paletaTetradica[3],
+    }
+    etiquetas = {
+        'Estable_OK':  'Estable (óptimo)',
+        'Mejora':      'Mejora',
+        'Regresion':   'Regresión',
+        'Estable_Mal': 'Estable (sin óptimo)',
+    }
+    categorias = list(colores.keys())
+
+    for nombre, df in tablas.items():
+        if df.empty:
+            continue
+
+        x = np.arange(len(df))
+        labels = df['Transicion'].tolist()
+
+        fig, ax = plt.subplots(figsize=(8, 5))
+
+        # 1. Prepare data for stacking
+        # We extract the categories in order
+        y_values = [df[cat].to_numpy().astype(float) for cat in categorias]
+        
+        # 2. Create the Stacked Area Plot
+        # baseline='zero' makes it easy to read as a trend
+        ax.stackplot(
+            x, y_values,
+            labels=[etiquetas[cat] for cat in categorias],
+            colors=[colores[cat] for cat in categorias],
+            alpha=0.8
+        )
+
+        # 3. Add Labels in the center of the bands
+        # We calculate the cumulative sum to find the vertical center of each band
+        cumulative_y = np.cumsum(y_values, axis=0)
+        for i, cat in enumerate(categorias):
+            current_vals = y_values[i]
+            bottoms = cumulative_y[i-1] if i > 0 else np.zeros(len(x))
+            
+            for xi, val, bottom in zip(x, current_vals, bottoms):
+                if val > 0:  # Changed to > 0 to see all data
+                    yi = bottom + (val / 2)
+                    
+                    # LOGIC FIX: Adjust alignment based on X position to avoid Y-axis overlap
+                    ha = 'center'
+                    if xi == 0:
+                        ha = 'left'   # Push away from Y-axis
+                    elif xi == len(x) - 1:
+                        ha = 'right'  # Push away from right edge
+                    
+                    ax.annotate(
+                        f"{int(val)}",
+                        xy=(xi, yi),
+                        xytext=(0, 0), # Kept at 0 to stay exactly on the marker line
+                        textcoords="offset points",
+                        ha=ha,
+                        va='center',
+                        fontsize=8,
+                        color='white',
+                        fontweight='bold',
+                        path_effects=[matplotlib.patheffects.withStroke(linewidth=1.5, foreground='black')]
+                    )
+
+        # 4. Formatting Fixes
+        ax.set_xticks(x)
+        ax.set_xticklabels(labels, rotation=45, ha="right")
+        
+        # ADDED MARGINS: This prevents the dots/labels from touching the axes
+        ax.set_xmargin(0.1) 
+        
+        # Ensure the Y axis starts at 0 and has room at the top
+        ax.set_ylim(0, df[categorias].sum(axis=1).max() * 1.1)
+
+        # 4. Formatting
+        ax.set_ylabel("Número de problemas")
+        ax.set_title(f"Evolución de Estados — {nombre} ({pipeline})")
+        
+        # Set limits to tighten the view
+        ax.set_xlim(0, len(df)-1)
+        ax.set_ylim(0, df[categorias].sum(axis=1).max() * 1.05)
+
+        ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.25), ncol=2)
+
+        plt.tight_layout()
+        plt.savefig(
+            os.path.join(output_dir, f"{pipeline}_area_evolucion_{nombre}.pdf"),
+            bbox_inches="tight"
+        )
+        plt.close(fig)
+
+       
 

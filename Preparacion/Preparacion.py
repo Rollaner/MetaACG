@@ -54,13 +54,7 @@ def extraerProblema(llms,instancia:NLInstance):
 
 
 def evaluarExtraccion(llms,instancia:NLInstance, respuesta):
-    valores = []
-    for valor in respuesta.split(','):
-        valores.append(valor.strip('"'))
-    extractedData = valores [1]
-    respuestaObj = valores[2]
-    #respuestaEval = valores[3]
-    prompt = generateFeedbackPrompt(instancia.problem,extractedData,instancia.parsedSolution,instancia.objectiveScore)
+    prompt = generateFeedbackPrompt(instancia.problem,respuesta,instancia.parsedSolution,instancia.objectiveScore)
     feedback = llms.generarFeedback(prompt)
     return feedback
 
@@ -69,40 +63,34 @@ def refinarDescripcion(llms,instancia:NLInstance,feedback:str):
     respuesta = llms.generarDefinicion(prompt)
     return respuesta
 
-def extraerIndividual(dataloader:DataLoader,llms:generador,path,dataStructPath, ID:str):
+def extraerIndividual(dataloader:DataLoader,llms:generador,path,dataStructPath, ID:str, schema:str):
     tiempoInicio = time.perf_counter()
     instancias = dataloader.getInstancias(ID)
     header = ['Instancia','Traje','Tipo_de_problema', 'Subtipo_de_problema', 'Iteracion', 'Respuesta', 'Feedback', 'Datos', 'Resultado_esperado', 'Valor_Objetivo', 'tiempo']
     for instancia in instancias:
-        if instancia.problemSubType == "Inverted":
-        ## hay que implementar logica para problemas invertidos!
-            return
-        else:
-            mejorSolucion = instancia.parsedSolution
-            valorOptimo = instancia.objectiveScore
+        mejorSolucion = instancia.parsedSolution
+        valorOptimo = instancia.objectiveScore
         respuesta = extraerProblema(llms,instancia)
         datos = [instancia.claveInstancia, instancia.problemCostume, instancia.problemType, instancia.problemSubType, 0, respuesta.content[0]['text'],"NA", instancia.instanceContent,mejorSolucion, valorOptimo, time.perf_counter()-tiempoInicio]
-        guardarResultados(datos, header, path)
         print(instancia.claveInstancia, respuesta.content[0]['text'])
         for i in range(2):
             feedback = evaluarExtraccion(llms,instancia, respuesta.content[0]['text'])
             datos = [instancia.claveInstancia, instancia.problemCostume, instancia.problemType, instancia.problemSubType, i+1, respuesta.content[0]['text'], feedback.content[0]['text'], instancia.instanceContent, instancia.parsedSolution, instancia.objectiveScore, time.perf_counter()-tiempoInicio]         
             respuesta = refinarDescripcion(llms,instancia,feedback)
-            guardarResultados(datos, header, path)
             print(instancia.claveInstancia, respuesta.content[0]['text'])
         #Asi solo guarda respuestas finales
         extractedSchema = json.loads(respuesta.content[0]['text'])
-        convertidor = generarDataClass(llms, extractedSchema["DATA_ROLES"],dataloader.getTestData()[0]).content[0]['text']
+        convertidor = generarDataClass(llms, extractedSchema["DATA_ROLES"], extractedSchema, schema).content[0]['text']
         datos = [instancia.claveInstancia, instancia.problemCostume, instancia.problemType, instancia.problemSubType, i+1, respuesta.content[0]['text'], feedback.content[0]['text'], instancia.instanceContent, instancia.parsedSolution, instancia.objectiveScore, time.perf_counter()-tiempoInicio]
         guardarResultados(datos, header, path)
         dataStructDatos = [instancia.claveInstancia,instancia.problemType,extractedSchema,convertidor]
         dataStructHeader = ['Instancia','Tipo_de_problema','SchemaDataClass','FuncionDeCarga']
         guardarResultados(dataStructDatos, dataStructHeader, dataStructPath)
-    return  datos[5], datos[6], convertidor
+    return respuesta.content[0]['text'], feedback.content[0]['text'], convertidor
 
 
-def generarDataClass(llms,schema,muestra):
-    prompt = generateConverterPrompt(schema, muestra)
+def generarDataClass(llms,extractedData,muestra, schema):
+    prompt = generateConverterPrompt(extractedData, muestra, schema)
     respuesta = llms.generarDefinicion(prompt)
     return respuesta
 
