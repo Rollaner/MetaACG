@@ -13,6 +13,24 @@ class InstanciaPruebaK:
     capacity: int = 0
     time: float = 0.0
 
+def _cargarDatos(data):
+        lineas = [line.strip() for line in data.splitlines() if line.strip()]
+        idx = 0
+        n = int(lineas[idx])
+        idx += 1
+        values = []
+        weights = []
+        for _ in range(n):
+            parts = lineas[idx].split()
+            values.append(int(parts[1]))
+            weights.append(int(parts[2]))
+            idx += 1
+        capacity = int(lineas[idx])
+        #greedySolution, greedyScore,greedyTime = _generarSolucionGreedyK(n,values,weights,capacity)
+        solution, value, DPTime = _generarSolucionDPK(n, values, weights, capacity)
+        return solution, value, DPTime, n, sum(values)
+
+
 def getSchema():
     return inspect.getsource(InstanciaPruebaK), InstanciaPruebaK, InstanciaPruebaK()
 
@@ -51,32 +69,14 @@ def cargarTest(dataTestStore, csv):
     return dataTestStore
 
 
-def cargarKnapsackEHOP(data):
-        lineas = [line.strip() for line in data.splitlines() if line.strip()]
-        idx = 0
-        n = int(lineas[idx])
-        idx += 1
-        values = []
-        weights = []
-        for _ in range(n):
-            parts = lineas[idx].split()
-            values.append(int(parts[1]))
-            weights.append(int(parts[2]))
-            idx += 1
-        capacity = int(lineas[idx])
-        greedySolution, greedyScore,greedyTime = generarSolucionGreedyK(n,values,weights,capacity)
-        solution, value, DPTime = generarSolucionDPK(n, values, weights, capacity)
-        return solution, value, DPTime, n, sum(values)
-
-
-def generarSolucion(claveInstancia: str, contenidoInstancia : str,subtipo: str):
-    solucion, valor, tiempo, n, maxValue = cargarKnapsackEHOP(contenidoInstancia)
+def generarSolucion(claveInstancia: str, contenidoInstancia, subtipo: str):
+    solucion, valor, tiempo, n, maxValue = _cargarDatos(contenidoInstancia)
     if(subtipo == "inverted"):
         indexes = list(range(n))
         return list(set(indexes) - set(solucion)), maxValue - valor
     return solucion, valor
 
-def generarSolucionGreedyK(nItems,values, weights, capacity):
+def _generarSolucionGreedyK(nItems,values, weights, capacity):
     startTime = time.perf_counter()
     valuePerWeight = map(lambda x, y: x/y, values, weights)
     indexes = list(range(nItems))
@@ -102,37 +102,37 @@ def generarSolucionGreedyK(nItems,values, weights, capacity):
     TotalTime = endTime - startTime
     return tuple(solucion), score, TotalTime
 
-def generarSolucionDPK(nItems,values, weights, capacity):
+def _generarSolucionDPK(nItems,values, weights, capacity):
     startTime = time.perf_counter()  
     scores = [[-1 for _ in range(capacity+1)] for _ in range(nItems+1)] #genera nItems+1 filas, y capacity+1 columnas
-    scores = exploracionRecursiva(scores,nItems,capacity,values,weights)
+    scores = _exploracionRecursiva(scores,nItems,capacity,values,weights)
     solucion = []
-    solucion = construirSolucion(nItems,capacity,scores,weights,solucion)
+    solucion = _construirSolucion(nItems,capacity,scores,weights,solucion)
     endTime = time.perf_counter()
     TotalTime = endTime - startTime
     return tuple(solucion), scores[nItems][capacity], TotalTime
 
-def exploracionRecursiva(valor, nItems, capacity, values, weights):
+def _exploracionRecursiva(valor, nItems, capacity, values, weights):
     if nItems == 0 or capacity <= 0:
         valor[nItems][capacity] = 0
         return valor
     if(valor[nItems-1][capacity] == -1):
-        valor = exploracionRecursiva(valor,nItems-1,capacity,values,weights)
+        valor = _exploracionRecursiva(valor,nItems-1,capacity,values,weights)
     if weights[nItems-1] > capacity:
         valor[nItems][capacity] = valor[nItems-1][capacity] 
     else:
         if(valor[nItems-1][capacity-weights[nItems-1]] == -1):
-            valor = exploracionRecursiva(valor,nItems-1,capacity-weights[nItems-1],values,weights)
+            valor = _exploracionRecursiva(valor,nItems-1,capacity-weights[nItems-1],values,weights)
         valor[nItems][capacity] = max(valor[nItems-1][capacity], valor[nItems-1][capacity-weights[nItems-1]] + values[nItems-1])
     return valor
     
-def construirSolucion(nItems,capacity,tablaValores, weights, solucion):
+def _construirSolucion(nItems,capacity,tablaValores, weights, solucion):
     if(nItems == 0 or capacity < 0): return 
     if(tablaValores[nItems][capacity] > tablaValores[nItems-1][capacity]):
-        construirSolucion(nItems-1, capacity-weights[nItems-1],tablaValores,weights,solucion)
+        _construirSolucion(nItems-1, capacity-weights[nItems-1],tablaValores,weights,solucion)
         solucion.append(nItems-1)
     else:
-        construirSolucion(nItems-1, capacity, tablaValores,weights, solucion)
+        _construirSolucion(nItems-1, capacity, tablaValores,weights, solucion)
     return solucion
 
 

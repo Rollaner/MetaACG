@@ -1,11 +1,9 @@
-import ast
 import argparse
-import numbers
 import sys
 import time
 from dotenv import load_dotenv
 import pandas as pd
-import Instancias
+import Analisis
 import Plotter
 import numpy as np
 #Estos estan aqui porque el codigo generado por IA tiende a necesitarlos. Como no pueden importar nada ellas, esto evita que exploten los solver
@@ -60,7 +58,7 @@ def main():
     parser.add_argument('-np', '--noprep',action='store_true', dest='skip_prep', help='Optimizar pero sin preparar antes, incompatible con --prep/-p y --opt/-o')
     parser.add_argument('-plt', '--plot',action='store_true', dest='plot', help='Procesar resultados')
     
-    ## puede que lo podamos reciclar para otra cosa, s23232ino eliminar
+    ## puede que lo podamos reciclar para otra cosa, sino eliminar
     parser.add_argument('-qt','--quicktest',action='store_true', dest='quicktest', help='Probar funcionalidad de componentes generados')
     args=parser.parse_args()
 
@@ -74,17 +72,10 @@ def main():
             #resultGCDBH = cargarResultados(os.path.join(pathDB,'resultados-SR-GC-H.jsonl'))
             #resultKDBH = cargarResultados(os.path.join(pathDB,'resultados-SR-K-H.jsonl'))
             #resultGCDBHUD = cargarResultados(os.path.join(pathDB,'resultados-SR-GC-HUD.jsonl'))
-            output = os.path.join(pathDB,'tablasLatex-2.tex')
-            dfProcesadoCD,fallosCD, desempeñoPorSolverCD, metricasRendimientoCD = procesarResultados(resultKDB, output,"CE-K", instancias)
+            output = os.path.join(pathDB,'tablasLatex.tex')
+            dfProcesadoCD, fallosCD, resultadosAux, correctitud = Analisis.procesarResultados(resultKDB, instancias)
             procesarResultadosPorIteracion(resultKDB,dfProcesadoCD,output,"CE-K", instancias, iteraciones)
-            Plotter.graficarMejoraPorIteracion(calcularMejoraPorIteracion(dfProcesadoCD, iteraciones), "CE-K")
-            
-            #fallosKH, dfProcesadoKH, desempeñoPorSolverKH, metricasRendimientoKH = procesarResultados(resultKDBH, output,"CDK-H","KH", problemaDB)
-            #fallosC, dfProcesadoC, desempeñoPorSolverC, metricasRendimientoC = procesarResultados(resultControlDB, output,"SDK","K")
-            #fallosUD, dfProcesadoUD, desempeñoPorSolverUD, metricasRendimientoUD = procesarResultados(resultUDDB, output,"UDK","K")
-            #fallosGC, dfProcesadoGC, desempeñoPorSolverGC, metricasRendimientoGC = procesarResultados(resultGCDB, output,"CDGC","GC")
-
-            #fallosGCH, dfProcesadoGCH, desempeñoPorSolverGCH, metricasRendimientoGCH = procesarResultados(resultGCDBH, output,"CDGC-H-L","GCH", problemaDB)
+            generarFigurasLatex(dfProcesadoCD, fallosCD, resultadosAux,  correctitud,  output,"CE-K")
             pd.set_option('display.float_format', lambda x: '%.0000f' % x) #Poco elegante pero funciona
             #compararResultados(metricasRendimientoCD,metricasRendimientoC,desempeñoPorSolverCD, desempeñoPorSolverC,output)
             #Necesita ser cambiado. De momento la comparacion FP y Control esta hardcodeada
@@ -241,7 +232,7 @@ def comprobarComponentesUD(problema,componentes:pd.DataFrame,resultDB: pd.DataFr
     resultDB = guardarResultado(problemaID,resultDB, componentes['Representacion'],componentes['Evaluacion'],componentes['Vecindad'],componentes['Perturbacion'],resultadoTS,"NA", "NA", "TS", tiempoTS)      
     return resultDB
 
-## Funciones compuestas. Presentes tambien en generador. Hace falta refactorizar
+
 
 def guardarResultado(problemaID,resultDB, representacion, evaluacion, vecindad, perturbacion, resultados,mejorSolucion, optimo, MH, tiempo):
     datosResultado = {
@@ -260,6 +251,15 @@ def guardarResultado(problemaID,resultDB, representacion, evaluacion, vecindad, 
     resultDBMod = pd.concat([resultDB,dfAux], ignore_index=True)
     return resultDBMod
 
+def auxParsearInf(val):
+    if val == 'Infinity':
+        return np.inf
+    elif val == '-Infinity':
+        return -np.inf
+    elif val == 'NaN':
+        return np.nan
+    raise ValueError(f"Valor desconcido: {val}")
+
 def cargarResultados(path):
     datos = []
     with open(path, 'r') as f:
@@ -274,14 +274,6 @@ def cargarResultados(path):
                 print(f"Fallo en {line_number}: {e} -> Datos: '{line.strip()}'")
     return pd.DataFrame(datos)
 
-def auxParsearInf(val):
-    if val == 'Infinity':
-        return np.inf
-    elif val == '-Infinity':
-        return -np.inf
-    elif val == 'NaN':
-        return np.nan
-    raise ValueError(f"Valor desconcido: {val}")
 
 def compararResultados(metricasRendimiento1, metricasRendimiento2,desempeñoPorSolver1, desempeñoPorSolver2,output):
             comparacion = metricasRendimiento1.merge(
@@ -289,7 +281,7 @@ def compararResultados(metricasRendimiento1, metricasRendimiento2,desempeñoPorS
                 on='Metaheuristica',
                 suffixes=('_FP', '_Control')
             )
-            # Calcular delta (erros absoluto negativo implica que FP es mas preciso == mejor)
+            # Calcular delta (error absoluto negativo implica que FP es mas preciso == mejor)
             comparacion['Delta_Error_Abs']  = comparacion['Promedio_Error_Abs_FP']  - comparacion['Promedio_Error_Abs_Control']
             comparacion['Delta_Error_Pct']  = comparacion['Promedio_Error_Porcentual_FP'] - comparacion['Promedio_Error_Porcentual_Control']
             # Calculate Intervalo de Confianza de delta
@@ -365,13 +357,6 @@ def compararResultados(metricasRendimiento1, metricasRendimiento2,desempeñoPorS
                 f.write('----------------------\n\n')
                 f.write(latexFish)
 
-def compararSoluciones(solucionGenerada, solucionInstancia) -> bool:
-    try:
-        final_solution = solucionGenerada[2]
-        return list(final_solution) == list(solucionInstancia)
-    except (TypeError, IndexError):
-        return False
-
 def procesarResultadosPorIteracion(resultados: pd.DataFrame,dfProcesado: pd.DataFrame, output, pipeline, instancias: DataLoader, iteraciones):
     filasPorIteracion = 4
     for iteracion in range(iteraciones):
@@ -391,147 +376,9 @@ def procesarResultadosPorIteracion(resultados: pd.DataFrame,dfProcesado: pd.Data
         print(f"\n{'='*40}")
         print(f"  Resultados iteracion {iteracion +1}")
         print(f"{'='*40}")
-        procesarResultados(subset, output, f"{pipeline}_iteracion_{iteracion +1}", instancias)
+        Analisis.procesarResultados(subset, output, f"{pipeline}_iteracion_{iteracion +1}", instancias)
 
-def calcularMejoraPorIteracion(dfProcesado: pd.DataFrame, iteraciones: int) -> dict[str, pd.DataFrame]:
-    ## probablemente deberia convertir esto a algo dinamico, contando la cantidad de heuristicas cargadas.
-    filasporiteracion = 4
-    
-    def _registrar(contadores: dict, existe_t: bool, es_valido_t: bool, es_optimo_t: bool, 
-                        existe_sig: bool, es_valido_sig: bool, es_optimo_sig: bool):
-    
-    # 1. SUCCESS CASES (Improvements)
-    # Was not optimal (either invalid or unoptimal) -> became optimal
-        if not es_optimo_t and es_optimo_sig:
-            contadores['Mejora'] += 1
-    # Was invalid -> became unoptimal (it now produces a numeric result)
-        elif not es_valido_t and (es_valido_sig and not es_optimo_sig):
-            contadores['Mejora'] += 1
-        
-    # 2. REGRESSION CASES
-    # Was optimal -> became unoptimal OR invalid
-        elif es_optimo_t and not es_optimo_sig:
-            contadores['Regresion'] += 1
-    # Was unoptimal -> became invalid (it broke or disappeared)
-        elif (es_valido_t and not es_optimo_t) and not es_valido_sig:
-            contadores['Regresion'] += 1
-        
-    # 3. STABLE CASES
-    # Was optimal -> stayed optimal
-        elif es_optimo_t and es_optimo_sig:
-            contadores['Estable_OK'] += 1
-    # Remained unoptimal or remained invalid
-        else:
-            contadores['Estable_Mal'] += 1
-
-    metaheuristicas = dfProcesado['Metaheuristica'].unique()
-    registros = {m: [] for m in metaheuristicas}
-    registros['General'] = []
-
-
-    dummy_fallos = {'Total Fallos': 0, 'Failure_to_evaluate': 0, 'Failure_to_run_target_heuristic': 0, 
-                    'Failure_to_load': 0, 'Otros': 0, 'Total Exitos': 0}
-
-    grouped = dfProcesado.groupby('ID_Problema')
-
-    for iteracion in range(iteraciones - 1):
-        subset_actual = grouped.apply(
-            lambda g: g.iloc[iteracion * filasporiteracion : (iteracion + 1) * filasporiteracion],
-            include_groups=False 
-        ).reset_index()
-
-        subset_siguiente = grouped.apply(
-            lambda g: g.iloc[(iteracion + 1) * filasporiteracion : (iteracion + 2) * filasporiteracion],
-            include_groups=False
-        ).reset_index()
-
-        contadores = {m: {'Mejora': 0, 'Regresion': 0, 'Estable_OK': 0, 'Estable_Mal': 0} for m in metaheuristicas}
-        problemas_totales = set(subset_actual['ID_Problema'].unique()) | set(subset_siguiente['ID_Problema'].unique())
-
-        for meta in metaheuristicas:
-            for problema in problemas_totales:
-                row_t = subset_actual[(subset_actual['ID_Problema'] == problema) & (subset_actual['Metaheuristica'] == meta)]
-                row_sig = subset_siguiente[(subset_siguiente['ID_Problema'] == problema) & (subset_siguiente['Metaheuristica'] == meta)]
-
-                # Helper to determine state for a single row
-                def get_state(row):
-                    if row.empty:
-                        return False, False, False # Existe, Valido, Optimo
-                    
-                    # Call your specific parser on the 'Resultados' column
-                    puntaje = parsearResultado(row['Resultados'].values[0], dummy_fallos)
-                    valido = not pd.isna(puntaje)
-                    optimo = valido and row['Solucion identica'].any()
-                    return True, valido, optimo
-
-                ex_t, val_t, opt_t = get_state(row_t)
-                ex_sig, val_sig, opt_sig = get_state(row_sig)
-
-                _registrar(contadores[meta], ex_t, val_t, opt_t, ex_sig, val_sig, opt_sig)
-
-        # Aggregate General (Dumb sum of per-metaheuristic results)
-        general_counts = {'Mejora': 0, 'Regresion': 0, 'Estable_OK': 0, 'Estable_Mal': 0}
-        for m in metaheuristicas:
-            for cat in general_counts:
-                general_counts[cat] += contadores[m][cat]
-
-        transicion = f"{iteracion}->{iteracion+1}"
-        for m in metaheuristicas:
-            registros[m].append({'Transicion': transicion, **contadores[m]})
-        registros['General'].append({'Transicion': transicion, **general_counts})
-
-    return {key: pd.DataFrame(rows) for key, rows in registros.items()}
-
-def procesarResultados(resultados:pd.DataFrame, output, pipeline, instancias:DataLoader):
-    pd.set_option('display.float_format', lambda x: '%.0f' % x)
-
-    def getScore(id_problema):
-        inst = instancias.getInstancia(id_problema)
-        return inst.objectiveScore if inst is not None else None
-
-    def getSolucion(id_problema):
-        inst = instancias.getInstancia(id_problema)
-        return inst.parsedSolution if inst is not None else None
-
-    def normalizar_resultado(x):
-        if isinstance(x, (list, dict)):
-            return x
-        if isinstance(x, str):
-            x = x.strip()
-            try:
-                return json.loads(x)
-            except json.JSONDecodeError:
-                pass
-            try:
-                return ast.literal_eval(x)
-            except (SyntaxError, ValueError):
-                return x
-        return x
-    
-    correctitud = {'Soluciones Identicas': 0,'Soluciones Distintas': 0,}
-    def verificarSolucion(row):
-        resultado = compararSoluciones(row['Resultados'], row['Solucion'])
-        if resultado:
-            correctitud['Soluciones Identicas'] += 1
-        else:
-            correctitud['Soluciones Distintas'] += 1
-        return resultado
-    
-    resultados['Valor Optimo'] = resultados['ID_Problema'].map(getScore)
-    resultados['Solucion'] = resultados['ID_Problema'].map(getSolucion)
-    resultados['Resultados'] = resultados['Resultados'].apply(normalizar_resultado)
-    FallosTot = {
-    'Failure_to_evaluate': 0,
-    'Failure_to_run_target_heuristic': 0,
-    'Failure_to_load': 0,
-    'Otros': 0,
-    'Total Fallos': 0,
-    'Total Exitos': 0
-    }
-    resultadosAux = resultados.copy()
-    resultadosAux['Puntaje Real'] = resultadosAux['Resultados'].apply(lambda r: parsearResultado(r, FallosTot))
-    dfProcesado = resultadosAux[resultadosAux['Puntaje Real'].notna()].copy()
-    
+def generarFigurasLatex(dfProcesado, resultadosAux, FallosTot, correctitud, output, pipeline):
     ## generacion de tablas y figuras
     latex1 = dfProcesado[['Metaheuristica', 'Resultados', 'Puntaje Real', 'Valor Optimo']].to_latex(index=False, column_format='lrrrr', caption=f'Resultados del procesado {pipeline}.', label=f'tab:{pipeline}_resultados_generales' )
     for key, count in FallosTot.items():
@@ -541,10 +388,7 @@ def procesarResultados(resultados:pd.DataFrame, output, pipeline, instancias:Dat
     tasaDeFallos = FallosTot['Total Fallos'] / totalExperimentos
     print(f"Tasa de Fallos {tasaDeFallos:.2%}")
     dfProcesado['Diferencia Absoluta'] = (dfProcesado['Puntaje Real']-dfProcesado['Valor Optimo']).abs()
-    dfProcesado['Diferencia Porcentual'] = (dfProcesado['Diferencia Absoluta']/dfProcesado['Valor Optimo']).abs()*100 #Valor optimo de EHOP nunca es cero
-    
-    dfProcesado['Solucion identica'] = dfProcesado.apply(verificarSolucion, axis=1)
-    
+    dfProcesado['Diferencia Porcentual'] = (dfProcesado['Diferencia Absoluta']/dfProcesado['Valor Optimo']).abs()*100 #Valor optimo de EHOP nunca es cero    
     resultadosAux['Mascara Exito'] = resultadosAux['Puntaje Real'].notna()
     metricasRendimiento = dfProcesado.groupby('Metaheuristica').agg(
         exitosTotales = ('Puntaje Real', 'count'),
@@ -584,7 +428,7 @@ def procesarResultados(resultados:pd.DataFrame, output, pipeline, instancias:Dat
     print("--- Tasa De Fallo por solver ---")
     print(desempeñoPorSolver[['Metaheuristica', 'TotalExperimentos', 'Tasa de Fallo']].sort_values(by='Tasa de Fallo'))
     latex3 = desempeñoPorSolver[['Metaheuristica', 'TotalExperimentos', 'Tasa de Fallo']].sort_values(by='Tasa de Fallo').to_latex(index=False, column_format='lrrr', caption=f'Tasa de fallo del procesado {pipeline}.', label=f'tab:{pipeline}_fallos' )
-    Plotter.graficos_por_pipeline(FallosTot, desempeñoPorSolver, metricasRendimiento, totalExperimentos, pipeline)
+    
     with open(output, 'a', encoding='utf-8') as f:
         ##tabla automagica en latex
         f.write("\\begin{table}[H]\n")
@@ -608,63 +452,9 @@ def procesarResultados(resultados:pd.DataFrame, output, pipeline, instancias:Dat
         f.write(latex1);f.write('----------------------\n\n')
         f.write(latex2);f.write('----------------------\n\n')
         f.write(latex3)
-    resultadosReg = resultados.copy()
-    resultadosReg['Solucion identica'] = resultadosReg.apply(verificarSolucion,axis=1)
-    return resultadosReg,FallosTot, desempeñoPorSolver, metricasRendimiento
 
-def parsearResultado(resultado, Fallos):
-    if isinstance(resultado, str):
-        Fallos['Total Fallos'] += 1
-        texto = resultado.lower()
-        if 'failed to evaluate' in texto:
-            Fallos['Failure_to_evaluate'] += 1
-        elif 'failed to run target heuristic' in texto:
-            Fallos['Failure_to_run_target_heuristic'] += 1
-        elif 'failed to load' in texto:
-            Fallos['Failure_to_load'] += 1
-        else:
-            Fallos['Otros'] += 1
-        return np.nan
-    #por si acaso. Es improbable que este sea una tupla o un array de np, pero las LLM son poco confiables
-    if isinstance(resultado, tuple):
-        resultado = list(resultado)
-    elif isinstance(resultado, np.ndarray):
-        resultado = resultado.tolist()
-        
-    if isinstance(resultado, list):
-        for elem in resultado:
-            if isinstance(elem, dict):
-                if 'bestScore' in elem:
-                    score = elem['bestScore']
-                elif 'currentScore' in elem:
-                    score = elem['currentScore']
-                else:
-                    continue
-                if isinstance(score, numbers.Real):
-                    Fallos['Total Exitos'] += 1
-                    return float(score)
-        numeric_vals = [e for e in resultado if isinstance(e, numbers.Real)]
-        if numeric_vals:
-            final_score = float(numeric_vals[-1]) 
-
-            # Los resultados optimos rondan a los mas en los 3 digitos. Cualquier cosa superior a eso puede ser una penalización o bien producto de un error de evaluacion en el codigo generado
-            # Un ejemplo claro de esto son las intancias n33 a n35 de GC. Estas tienen un multiplicador the 1000 por ningun buen motivo
-            # Generalmente es preferible no moverse a posiciones inviables, asi que sea como sea, es un fallo de ejecución. 
-            if abs(final_score) >= 1e3:                 
-                Fallos['Total Fallos'] += 1
-                Fallos['Otros'] += 1
-                return np.nan
-
-            Fallos['Total Exitos'] += 1
-            return final_score
-
-        Fallos['Total Fallos'] += 1
-        Fallos['Otros'] += 1
-        return np.nan
-
-    Fallos['Total Fallos'] += 1
-    Fallos['Otros'] += 1
-    return np.nan
+    Plotter.graficos_por_pipeline(FallosTot, desempeñoPorSolver, metricasRendimiento, totalExperimentos, pipeline)
+    return FallosTot, desempeñoPorSolver, metricasRendimiento
 
 def cronometrarFuncion(func: Callable, *args, **kwargs) -> tuple[float, any]:
     inicio = time.perf_counter()

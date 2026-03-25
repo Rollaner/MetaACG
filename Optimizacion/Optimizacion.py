@@ -1,5 +1,6 @@
 import ast
 import time
+import numbers
 from typing import Any, Callable, Dict, Tuple,List, Union
 from dataclasses import make_dataclass
 from Instancias import NLInstance,DataLoader
@@ -76,30 +77,28 @@ def optimizarProblemaPreparadoDB(problema,schema,problemData, componenteDB:pd.Da
         ### generacion inicial
         llms = generador()
         llms.cargarLLMs()
-        problemaID, jsonProblema, SampleSol, _ = extraerDatosProblema(problema)
+        problemaID, jsonProblema, knownSol, knownObj = extraerDatosProblema(problema)
         print(problemaID)
         objetivo, restricciones = jsonProblema['OBJECTIVE'], jsonProblema['CONSTRAINTS']
-        
-        Eval, Nb, Perturb, representacion = generacionComponentesInicial(schema, objetivo, restricciones,llms, SampleSol)
-        print(Perturb)
-        componenteDB = guardarComponentes(problemaID,componenteDB,representacion, Eval, Nb, Perturb, SampleSol, iteraciones)
+        Eval, Nb, Perturb, representacion = generacionComponentesInicial(schema, objetivo, restricciones,llms, knownSol)
+        componenteDB = guardarComponentes(problemaID,componenteDB,representacion, Eval, Nb, Perturb, knownSol, iteraciones)
         respuestas = [] #Temporal, para guardar todas las respuestas de generacion de componentes para tener la metadata.
         feedbacks = []
         i = 0
         ### proceso iterativo
         while i < iteraciones:
-            resultadoSA, tiempoSA = cronometrarFuncion(evaluarComponentes,Heuristicas.SimulatedAnnealing.SA,Eval, Nb, Perturb,problemData, SampleSol,[1000,10,0.9])
-            resultadoILS, tiempoILS = cronometrarFuncion(evaluarComponentes,Heuristicas.IteratedLocalSearch.ILS, Eval, Nb, Perturb,problemData, SampleSol,[200,0.1])
-            resultadoTS, tiempoTS = cronometrarFuncion(evaluarComponentes,Heuristicas.TabooSearch.TS, Eval, Nb, Perturb,problemData, SampleSol,[200,10,7])
-            resultadoHC, tiempoHC = cronometrarFuncion(evaluarComponentes,Heuristicas.HillClimbing.HC, Eval, Nb, Perturb,problemData, SampleSol,[200]) 
+            resultadoSA, tiempoSA = cronometrarFuncion(evaluarComponentes,Heuristicas.SimulatedAnnealing.SA,Eval, Nb, Perturb,problemData, knownSol,[1000,10,0.9])
+            resultadoILS, tiempoILS = cronometrarFuncion(evaluarComponentes,Heuristicas.IteratedLocalSearch.ILS, Eval, Nb, Perturb,problemData, knownSol,[200,0.1])
+            resultadoTS, tiempoTS = cronometrarFuncion(evaluarComponentes,Heuristicas.TabooSearch.TS, Eval, Nb, Perturb,problemData, knownSol,[200,10,7])
+            resultadoHC, tiempoHC = cronometrarFuncion(evaluarComponentes,Heuristicas.HillClimbing.HC, Eval, Nb, Perturb,problemData, knownSol,[200]) 
             print(resultadoSA)
             print(resultadoILS)
             print(resultadoTS)
             print(resultadoHC)
-            resultDB = guardarResultado(problemaID,resultDB,representacion, Eval,Nb,Perturb,resultadoSA,SampleSol, "NA", "SA", tiempoSA)
-            resultDB = guardarResultado(problemaID,resultDB,representacion,Eval,Nb,Perturb,resultadoILS,SampleSol, "NA", "ILS", tiempoILS)
-            resultDB = guardarResultado(problemaID,resultDB,representacion,Eval,Nb,Perturb,resultadoTS,SampleSol, "NA", "TS", tiempoTS)
-            resultDB = guardarResultado(problemaID,resultDB,representacion,Eval,Nb,Perturb,resultadoHC,SampleSol, "NA", "HC", tiempoHC)
+            resultDB = guardarResultado(problemaID,i,resultDB,representacion, Eval,Nb,Perturb,resultadoSA,knownSol, "NA", "SA", tiempoSA)
+            resultDB = guardarResultado(problemaID,i,resultDB,representacion,Eval,Nb,Perturb,resultadoILS,knownSol, "NA", "ILS", tiempoILS)
+            resultDB = guardarResultado(problemaID,i,resultDB,representacion,Eval,Nb,Perturb,resultadoTS,knownSol, "NA", "TS", tiempoTS)
+            resultDB = guardarResultado(problemaID,i,resultDB,representacion,Eval,Nb,Perturb,resultadoHC,knownSol, "NA", "HC", tiempoHC)
             #bloque de pruebas usando dataset.
             #for sample in samples:
             #    problemData = convertidor(sample)
@@ -111,29 +110,44 @@ def optimizarProblemaPreparadoDB(problema,schema,problemData, componenteDB:pd.Da
             #    resultDB = guardarResultado(problemaID,resultDB,representacion,Eval,Nb,Perturb,resultadoILS,SampleSol, sample.solution, "ILS", tiempoILS)
             #    resultDB = guardarResultado(problemaID,resultDB,representacion,Eval,Nb,Perturb,resultadoTS,SampleSol, sample.solution, "TS", tiempoTS)
             #    resultDB = guardarResultado(problemaID,resultDB,representacion,Eval,Nb,Perturb,resultadoHC,SampleSol, sample.solution, "HC", tiempoHC)
-            feedbackPrompt = generateFeedbackPrompt(problemData, objetivo, restricciones,Eval, Nb, Perturb, SampleSol,resultadoSA, resultadoILS,resultadoTS, "NA", "NA", i) #Necesita trabajar con el nuevo sistema de JSON
+            feedbackPrompt = generateFeedbackPrompt(problemData, objetivo, restricciones,Eval, Nb, Perturb, knownSol,resultadoSA, resultadoILS,resultadoTS, "NA", "NA", i) #Necesita trabajar con el nuevo sistema de JSON
             feedback = llms.generarFeedback(feedbackPrompt) 
             feedbacks.append(feedback)
             feedbackTexto = feedback.content[0]['text']
-            print(feedbackTexto)
             feedbackDB = guardarFeedback(problemaID,feedbackDB,representacion,Eval, Nb, Perturb, i,feedbackTexto)
+            ### Corte temprano
+            if componentesCorrectos(knownSol,knownObj,resultadoSA,resultadoTS,resultadoILS,resultadoHC):
+                return componenteDB, feedbackDB, resultDB
             ### Retroalimentacion
-            respuesta = generacionNuevosComponentes(schema, objetivo, restricciones,llms,SampleSol,resultadoSA,resultadoILS, resultadoTS,feedbackTexto)
+            respuesta = generacionNuevosComponentes(schema, objetivo, restricciones,llms,knownSol,resultadoSA,resultadoILS, resultadoTS,feedbackTexto)
             respuestas.append(respuesta)
             Eval, Nb, Perturb, representacion = respuesta
-            componenteDB = guardarComponentes(problemaID,componenteDB,representacion, Eval, Nb, Perturb, SampleSol, i)
+            componenteDB = guardarComponentes(problemaID,componenteDB,representacion, Eval, Nb, Perturb, knownSol, i)
             i = i + 1
-        resultadoSA, tiempoSA = cronometrarFuncion(evaluarComponentes,Heuristicas.SimulatedAnnealing.SA,Eval, Nb, Perturb,problemData,SampleSol,[1000,10,0.9])
-        resultadoILS, tiempoILS = cronometrarFuncion(evaluarComponentes,Heuristicas.IteratedLocalSearch.ILS, Eval, Nb, Perturb,problemData, SampleSol,[200,0.1])
-        resultadoTS, tiempoTS = cronometrarFuncion(evaluarComponentes,Heuristicas.TabooSearch.TS, Eval, Nb, Perturb,problemData, SampleSol,[200,10,7])
-        resultadoHC, tiempoHC = cronometrarFuncion(evaluarComponentes,Heuristicas.HillClimbing.HC, Eval, Nb, Perturb,problemData, SampleSol,[200]) 
+        resultadoSA, tiempoSA = cronometrarFuncion(evaluarComponentes,Heuristicas.SimulatedAnnealing.SA,Eval, Nb, Perturb,problemData,knownSol,[1000,10,0.9])
+        resultadoILS, tiempoILS = cronometrarFuncion(evaluarComponentes,Heuristicas.IteratedLocalSearch.ILS, Eval, Nb, Perturb,problemData, knownSol,[200,0.1])
+        resultadoTS, tiempoTS = cronometrarFuncion(evaluarComponentes,Heuristicas.TabooSearch.TS, Eval, Nb, Perturb,problemData, knownSol,[200,10,7])
+        resultadoHC, tiempoHC = cronometrarFuncion(evaluarComponentes,Heuristicas.HillClimbing.HC, Eval, Nb, Perturb,problemData, knownSol,[200]) 
         print(resultadoSA)
         print(resultadoILS)
         print(resultadoTS)
-        resultDB = guardarResultado(problemaID,resultDB,representacion, Eval,Nb,Perturb,resultadoSA,SampleSol, "NA", "SA", tiempoSA)
-        resultDB = guardarResultado(problemaID,resultDB,representacion,Eval,Nb,Perturb,resultadoILS,SampleSol, "NA", "ILS", tiempoILS)
-        resultDB = guardarResultado(problemaID,resultDB,representacion,Eval,Nb,Perturb,resultadoTS,SampleSol, "NA", "TS", tiempoTS)       
+        resultDB = guardarResultado(problemaID,i,resultDB,representacion, Eval,Nb,Perturb,resultadoSA,knownSol, "NA", "SA", tiempoSA)
+        resultDB = guardarResultado(problemaID,i,resultDB,representacion,Eval,Nb,Perturb,resultadoILS,knownSol, "NA", "ILS", tiempoILS)
+        resultDB = guardarResultado(problemaID,i,resultDB,representacion,Eval,Nb,Perturb,resultadoTS,knownSol, "NA", "TS", tiempoTS)
+        resultDB = guardarResultado(problemaID,i,resultDB,representacion,Eval,Nb,Perturb,resultadoHC,knownSol, "NA", "HC", tiempoHC)       
         return componenteDB, feedbackDB, resultDB
+
+## Detecta si todo obtuvo resultados validos, y si alguna de las metaheuristicas llego al optimo. Si una lo hizo, sabemos que se puede, y que los componententes estan correctos.
+def componentesCorrectos(knownSol, knownObj, *args):
+    optimoPresente = False, errorNoDetectado = True
+    for resultados in args:
+        currentSolucion,currentScore, mejorSolucion, mejorScore = resultados
+        if (mejorSolucion == knownSol and mejorScore == knownObj):
+            optimoPresente = True
+        if (isinstance(currentSolucion,numbers.Real) or not isinstance(currentScore,numbers.Real) or not isinstance(mejorSolucion,numbers.Real) or not isinstance(mejorScore,numbers.Real)):
+            errorNoDetectado = False            
+    return (optimoPresente and errorNoDetectado)
+
 
 ## No usa sistema de preparacion, Deprecado
 def optimizarProblemaSinPreparar(problemaID, problema, problemData, SampleSol,componenteDB:pd.DataFrame,resultDB: pd.DataFrame,feedbackDB: pd.DataFrame, iteraciones):
@@ -218,7 +232,7 @@ def evaluarComponentes(Heuristica,Eval, Nb, Perturb,problemData, SampleSol, Para
     except Exception as e:
         return(generarDiagnostico(f"Failed to evaluate SAMPLE_SOL with EVAL_CODE: {e}"))
     try:
-        resultado = Heuristica(solucionPrueba,solucionPrueba,evaluacion(solucionPrueba,problemData),problemData,vecindad,perturb,evaluacion,*Params)
+        resultado = Heuristica(solucionPrueba,solucionPrueba,valor,problemData,vecindad,perturb,evaluacion,*Params)
     except Exception as e:
         return(generarDiagnostico(f"Failed to run target heuristic: {e}.  Signature def {Heuristica.__name__}(solution,best_sol, best_score, problemData, generate_neighbour(), evaluate_solution(), *Params"))
     #Cargar heuristicas, retornar resultados de cada una.
@@ -270,9 +284,10 @@ def cargarComponente(codigo: str):
     raise ValueError(f"No se encontró una función (callable) en el código cargado con exec().")
 
 
-def guardarResultado(problemaID,resultDB, representacion, evaluacion, vecindad, perturbacion, resultados,mejorSolucion, optimo, MH, tiempo):
+def guardarResultado(problemaID, iteracion,resultDB, representacion, evaluacion, vecindad, perturbacion, resultados,mejorSolucion, optimo, MH, tiempo):
     datosResultado = {
         'ID_Problema': problemaID,
+        'Iteracion': iteracion,
         'Representacion': representacion,
         'Evaluacion': evaluacion,
         'Vecindad': vecindad,

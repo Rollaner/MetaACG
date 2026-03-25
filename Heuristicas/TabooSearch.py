@@ -1,4 +1,5 @@
 def TS(solucionActual, mejorSolucion, mejorCosto, datosProblema,funcionVencindad, funcionPerturbacion, funcionEvaluacion,iteraciones, sizeListaTabu, duracionTabu):
+    ##Requiere una revision concienzuda. Puesto que todavia se cae muy seguido
     i = 0
     listaTabu = {}
     mejorCosto = funcionEvaluacion(solucionActual, datosProblema)

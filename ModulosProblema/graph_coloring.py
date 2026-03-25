@@ -16,24 +16,43 @@ def getSchema():
     return inspect.getsource(InstanciaPruebaGC),  InstanciaPruebaGC, InstanciaPruebaGC()
 
 def cargarTest(dataTestStore, dimacs, inverso=False):
-        with open(dimacs, 'r') as f:
-            key = dimacs.split('/')[-1]
-            for line in f:
-                parts = line.split()
-                if not parts: continue
-                if parts[0] == 'p':
-                    NumNodes = int(parts[2])
-                    NumEdges = int(parts[3])
-                    ListaEdges = [set() for i in range(1, NumNodes + 1)]
-                elif parts[0] == 'e':
-                    nodo1, nodo2 = int(parts[1]), int(parts[2])
-                    ListaEdges[nodo1-1].add(nodo2-1)
-                    ListaEdges[nodo2-1].add(nodo1-1)
-            solucion, puntaje, tiempo = generarSolucionGreedyGC(ListaEdges, NumNodes, inverso)
-            dataTestStore[key] = InstanciaPruebaGC( NumNodes, NumEdges,solucion, puntaje, tiempo, ListaEdges)
-        return dataTestStore
+    ListaEdges,NumNodes, NumEdges, key = _cargarDatos(dimacs)
+    solucion, puntaje, tiempo = generarSolucionGreedyGC(ListaEdges, NumNodes, inverso)
+    dataTestStore[key] = InstanciaPruebaGC( NumNodes, NumEdges,solucion, puntaje, tiempo, ListaEdges)
+    return dataTestStore
 
-def generarSolucionGreedyGC(ListaEdges, NumNodes, inverso):
+def _cargarDatos(data):
+    with open(data, 'r') as f:
+        key = data.split('/')[-1]
+        for line in f:
+            parts = line.split()
+            if not parts: continue
+            if parts[0] == 'p':
+                NumNodes = int(parts[2])
+                NumEdges = int(parts[3])
+                ListaEdges = [set() for i in range(1, NumNodes + 1)]
+            elif parts[0] == 'e':
+                nodo1, nodo2 = int(parts[1]), int(parts[2])
+                ListaEdges[nodo1-1].add(nodo2-1)
+                ListaEdges[nodo2-1].add(nodo1-1)
+    return ListaEdges, NumNodes, NumEdges, key
+
+def _cargarDatosAlt(data):
+    key = data.split('/')[-1]
+    for line in data:
+        parts = line.split()
+        if not parts: continue
+        if parts[0] == 'p':
+            NumNodes = int(parts[2])
+            NumEdges = int(parts[3])
+            ListaEdges = [set() for i in range(1, NumNodes + 1)]
+        elif parts[0] == 'e':
+            nodo1, nodo2 = int(parts[1]), int(parts[2])
+            ListaEdges[nodo1-1].add(nodo2-1)
+            ListaEdges[nodo2-1].add(nodo1-1)
+    return ListaEdges, NumNodes, NumEdges, key
+
+def generarSolucionGreedyGC(ListaEdges, NumNodes, inverso: bool):
     #Ordernar por que tiene mas conexiones usando ListaEdges.sort().
     ListaEdgesDesc = sorted(ListaEdges, key= lambda x:  len(x), reverse = True)
     #Colorear con primer color disponible, marcar como usado. Normal: Nodos conectados no pueden compartir color. Inverso: Nodos no conectados no pueden compartir color
@@ -78,10 +97,15 @@ def generarSolucionGreedyGC(ListaEdges, NumNodes, inverso):
     tiempo = 0
     return solucion, puntaje, tiempo
 
-def generarSolucion(claveInstancia: str, contenidoInstancia: str, subtipo: str):
+def generarSolucion(claveInstancia: str, contenidoInstancia, subtipo: str):
     #en este caso, debido a que inviertieron el grafo, la solucion inversa es equivalente a la normal
     #por lo que se copio la solucion original, por lo menos hasta que pueda probar bien el solver que esta aqui, no se usara
-    return None
+    ListaEdges, NumNodes, _, _ = _cargarDatosAlt(contenidoInstancia)
+    if subtipo == "inverted": 
+        solucion, puntaje, tiempo = generarSolucionGreedyGC(ListaEdges, NumNodes, True)
+    else: 
+        olucion, puntaje, tiempo = generarSolucionGreedyGC(ListaEdges, NumNodes, False)
+    return solucion, puntaje
 
 
 def parsearSolucion(claveInstancia: str, solutionContent: str) -> Tuple[int, List[int]] | None:
