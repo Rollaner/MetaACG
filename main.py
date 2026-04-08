@@ -10,11 +10,11 @@ import numpy as np
 import random
 import math 
 # List y Union tambien estan aqui por el mismo motivo.
+from typing import List, Union,Callable, Any, Dict
 from scipy.stats import t, fisher_exact
 import os
 import Optimizacion.PromptSamplerOP as PromptSamplerOP
 import json
-from typing import List, Union,Callable, Any, Dict
 from Preparacion import Preparacion
 from Instancias import DataLoader
 from Generador import generador
@@ -25,47 +25,50 @@ def main():
     semilla = 1234
     iteraciones = 3 #Genracion se atasca muy seguido. Se prueba sin reiniciar, luego probabos con reinicio. 
     filaMultiplo = 3
-    tipoProblema = "K"
+    instancias = DataLoader()
     #Inicializar datos
     load_dotenv()
-    #Modificacion para pruebas, prepara modo batch por defecto. Estas lineas se tienen que eliminar cuando se empieze a optimizar
+    #Modificacion para pruebas, prepara modo batch por defecto. Mas rapido en caso de que el codigo falle
     if len(sys.argv) == 1:
-        sys.argv.extend(['knapsack_hard_dataset_in_house_24','-plt'])
+        sys.argv.extend(['TS', 'traveling_salesman_hard_dataset_in_house_9_24', '-plt'])
     pathDB= os.path.join(os.path.dirname(__file__), 'Data')
     #Fin modificacion para pruebas
-    os.makedirs(pathDB, exist_ok=True)
-    problemasPath = os.path.join(pathDB, f'problemas-{tipoProblema}.jsonl')
-    #problemasPath = os.path.join(pathDB, f'problemas-{tipoProblema-subtipoProblema}.jsonl')
-    dataStructPath = os.path.join(pathDB, f"dataStruct-SR-{tipoProblema}.jsonl")
-    componentesPath = os.path.join(pathDB, f'componentes-SR-{tipoProblema}.jsonl')
-    feedbackPath = os.path.join(pathDB,f'feedback-SR-{tipoProblema}.jsonl')
-    resultPath = os.path.join(pathDB,f'resultados-SR-{tipoProblema}.jsonl')
-    componentesPathNP = os.path.join(pathDB, f'componentes-SR-{tipoProblema}-NP.jsonl')
-    feedbackPathNP = os.path.join(pathDB,f'feedback-SR-{tipoProblema}-NP.jsonl')
-    resultPathNP = os.path.join(pathDB,f'resultados-SR-{tipoProblema}-NP.jsonl')
-    instancias = DataLoader()
-    instancias.cargarProblemas(tipoProblema)
-    schemaEstandar, dataclassProblema, dataclassProblemaInst = instancias.getSchema(tipoProblema)
-    llms = generador()
-    llms.cargarLLMs()
     parser = argparse.ArgumentParser()
     # Este no tiene flag (-  o bien --). Es posicional. Para referencia futura: --help pone los posicionales primero
+    parser.add_argument('tipoProblema', type=str, choices=instancias.getClaves().keys(), help='Tipo de problema a procesar.')
     parser.add_argument('problema_ID', nargs='?',default=None,help="ID del problema a optimizar: Formato: Tipo_dataset_ID, IDs son equivalentes al nombre de carpeta que contiene los datos de la instancia, incompatible con '-b/--batch'")
-    parser.add_argument('-t', '--type', type=str, choices=instancias.getClaves().keys(), help='Tipo de problema para procesamiento en Batch.')
     parser.add_argument('-b', '--batch', action= 'store_true', dest='batch',help='Realizar operaciones con todos los datos y problemas disponibles de forma automatica')
     parser.add_argument('-p', '--prep',action='store_true', dest='prep', help='Realiza preparacion de problemas en batch, no optimiza')
     parser.add_argument('-o', '--opt',action='store_true', dest='opt', help='Solo optimizar, pero espera preparacion previa- Usar despues the -p o --prep. sin solucion conocida')
     parser.add_argument('-np', '--noprep',action='store_true', dest='skip_prep', help='Optimizar pero sin preparar antes, incompatible con --prep/-p y --opt/-o')
     parser.add_argument('-plt', '--plot',action='store_true', dest='plot', help='Procesar resultados')
-    
-    ## puede que lo podamos reciclar para otra cosa, sino eliminar
+     ## puede que lo podamos reciclar para otra cosa, sino eliminar
     parser.add_argument('-qt','--quicktest',action='store_true', dest='quicktest', help='Probar funcionalidad de componentes generados')
     args=parser.parse_args()
+    tipoProblema = args.tipoProblema
+    os.makedirs(pathDB, exist_ok=True)
+    problemasPath = os.path.join(pathDB, f'problemas-{tipoProblema}.jsonl')
+    #problemasPath = os.path.join(pathDB, f'problemas-{tipoProblema-subtipoProblema}.jsonl')
+    dataStructPath = os.path.join(pathDB, f"dataStruct-{tipoProblema}.jsonl")
+    componentesPath = os.path.join(pathDB, f'componentes-{tipoProblema}.jsonl')
+    inspiracionPath = os.path.join(pathDB, f'inspiraciones-{tipoProblema}.jsonl')
+    feedbackPath = os.path.join(pathDB,f'feedback-{tipoProblema}.jsonl')
+    resultPath = os.path.join(pathDB,f'resultados-{tipoProblema}.jsonl')
+    componentesPathNP = os.path.join(pathDB, f'componentes-NP-{tipoProblema}-NP.jsonl')
+    feedbackPathNP = os.path.join(pathDB,f'feedback-NP-{tipoProblema}-NP.jsonl')
+    resultPathNP = os.path.join(pathDB,f'resultados-NP-{tipoProblema}-NP.jsonl')
+    
+    instancias.cargarProblemas(tipoProblema)
+    schemaEstandar, dataclassProblema, dataclassProblemaInst = instancias.getSchema(tipoProblema)
+    llms = generador()
+    llms.cargarLLMs()
+    
+   
 
     if args.plot:
         problemaDB = pd.read_json(problemasPath,lines=True)
         if os.path.exists(componentesPath) and os.path.exists(resultPath) and os.path.exists(feedbackPath):
-            resultKDB = cargarResultados(os.path.join(pathDB,'resultados-SR-K.jsonl'))
+            resultKDB = cargarResultados(os.path.join(pathDB,f'resultados-SR-{tipoProblema}.jsonl'))
             #resultControlDB = cargarResultados(os.path.join(pathDB,'resultados-SR-K-SD.jsonl'))
             #resultUDDB = cargarResultados(os.path.join(pathDB,'resultados-SR-K-PR.jsonl'))
             #resultGCDB = cargarResultados(os.path.join(pathDB,'resultados-SR-GC.jsonl'))
@@ -74,8 +77,8 @@ def main():
             #resultGCDBHUD = cargarResultados(os.path.join(pathDB,'resultados-SR-GC-HUD.jsonl'))
             output = os.path.join(pathDB,'tablasLatex.tex')
             dfProcesadoCD, fallosCD, resultadosAux, correctitud = Analisis.procesarResultados(resultKDB, instancias)
-            procesarResultadosPorIteracion(resultKDB,dfProcesadoCD,output,"CE-K", instancias, iteraciones)
-            generarFigurasLatex(dfProcesadoCD, fallosCD, resultadosAux,  correctitud,  output,"CE-K")
+            #procesarResultadosPorIteracion(resultKDB,dfProcesadoCD,output,"CE-K", instancias, iteraciones)
+            Analisis.generarFigurasYTablasLatex(dfProcesadoCD, fallosCD, resultadosAux,  correctitud,  output,f"CE-{tipoProblema}")
             pd.set_option('display.float_format', lambda x: '%.0000f' % x) #Poco elegante pero funciona
             #compararResultados(metricasRendimientoCD,metricasRendimientoC,desempeñoPorSolverCD, desempeñoPorSolverC,output)
             #Necesita ser cambiado. De momento la comparacion FP y Control esta hardcodeada
@@ -106,10 +109,10 @@ def main():
         print(problema_ID)
         if args.prep:
             print("Datos inicializados. Iniciando preparación")
-            prepararIndividual(instancias,llms,problemasPath,dataStructPath,problema_ID,schemaEstandar) #NGuarda Datos directamente. Se usa el archivo CSV para pasar datos a traves del sistema
+            prepararIndividual(instancias,llms,problemasPath,dataStructPath,problema_ID,schemaEstandar, dataclassProblema) #NGuarda Datos directamente. Se usa el archivo CSV para pasar datos a traves del sistema
             #probar los dataStruct para saber si funcionan bien por medio de hacerlos cargar cada experimento?. 
         if args.opt:
-                componenteDB, feedbackDB, resultDB = cargarDBs(componentesPath,resultPath,feedbackPath)
+                componenteDB, feedbackDB, resultDB, InspiracionDB = cargarDBs(componentesPath,resultPath,feedbackPath, inspiracionPath)
                 problemaDB = pd.read_json(problemasPath,lines=True)
                 dataStructDB = pd.read_json(dataStructPath, lines=True)
                 filas_serie = problemaDB[problemaDB['Instancia'].str.startswith(problema_ID, na=False)] ## poco eficiente, pero como solo se hace unas pocas veces no importa. .iloc[0] es para que nos entregue la fila como serie
@@ -131,11 +134,12 @@ def main():
                         print(f"Error al inicializar datos del problema {problema_ID}, revise como fue preparado antes de continuar")
                         continue;
                     print(problemData)
-                    componenteDB, feedbackDB, resultDB = Optimizacion.optimizarProblemaPreparadoDB(problema,schemaEstandar,problemData, componenteDB,resultDB,feedbackDB, iteraciones)
+                    componenteDB, feedbackDB, resultDB, InspiracionDB = Optimizacion.optimizarProblemaPreparadoDB(problema,schemaEstandar,problemData, componenteDB,resultDB,feedbackDB,InspiracionDB, iteraciones)
                     #crear funcion para probar componentes generados para el problema.
                     componenteDB.to_json(componentesPath,orient='records',lines=True)
                     feedbackDB.to_json(feedbackPath,orient='records',lines=True)
                     resultDB.to_json(resultPath,orient='records',lines=True)
+                    InspiracionDB.to_json(resultPath,orient='records',lines=True)
                 return 0         
         if args.skip_prep and not args.opt and not args.prep:
             instancias = instancias.getInstancias(problema_ID)
@@ -193,21 +197,21 @@ def main():
     #resultDB.to_json(resultPath,lines=True)
     return 0
 
-def prepararIndividual(instancias,llms,problemasPath, dataStructPath,instancia, schema):
-    respuesta, feedback, convertidor = Preparacion.extraerIndividual(instancias,llms,problemasPath, dataStructPath, instancia,schema)
+def prepararIndividual(instancias,llms,problemasPath, dataStructPath,instancia, schema, dataclassProblema):
+    respuesta, feedback, convertidor = Preparacion.extraerIndividual(instancias,llms,problemasPath, dataStructPath, instancia,schema, dataclassProblema)
     print("RESPUESTA final: \n" + respuesta + "---------------------- \n FEEDBACK mas reciente: \n" + feedback)
     return respuesta,feedback, convertidor
 
-def cargarDBs(componentesPath,resultPath,feedbackPath):
-    if os.path.exists(componentesPath) and os.path.exists(resultPath) and os.path.exists(feedbackPath):
-        componenteDB = pd.read_json(componentesPath,lines=True)
-        feedbackDB = pd.read_json(feedbackPath,lines=True)
-        resultDB = pd.read_json(resultPath,lines=True)
-    else:
-        componenteDB = pd.DataFrame(columns=['ID_Problema', 'Representacion', 'Evaluacion', 'Vecindad', 'Perturbacion','SolucionPrueba','Version'])
-        feedbackDB = pd.DataFrame(columns=['ID_Problema', 'Representacion', 'Componente','Version', 'Feedback'])
-        resultDB = pd.DataFrame(columns=['ID_Problema', 'Representacion', 'Evaluacion', 'Vecindad', 'Perturbacion', 'Resultados','Solucion','Valor Optimo', 'Metaheuristica', 'Tiempo'])
-    return componenteDB,feedbackDB,resultDB
+def cargarDBs(componentesPath,resultPath,feedbackPath, inspiracionPath):
+    if os.path.exists(componentesPath): componenteDB = pd.read_json(componentesPath,lines=True)
+    else: componenteDB = pd.DataFrame(columns=['ID_Problema', 'Representacion', 'Evaluacion', 'Vecindad', 'Perturbacion','SolucionPrueba','Version'])
+    if os.path.exists(feedbackPath): feedbackDB = pd.read_json(feedbackPath,lines=True)
+    else: feedbackDB = pd.DataFrame(columns=['ID_Problema', 'Representacion', 'Componente','Version', 'Feedback'])
+    if os.path.exists(resultPath): resultDB = pd.read_json(resultPath,lines=True)
+    else:resultDB = pd.DataFrame(columns=['ID_Problema', 'Representacion', 'Evaluacion', 'Vecindad', 'Perturbacion', 'Resultados','Solucion','Valor Optimo', 'Metaheuristica', 'Tiempo'])
+    if os.path.exists(inspiracionPath): inspiracionDB = pd.read_json(componentesPath,lines=True)
+    else: inspiracionDB = pd.DataFrame(columns=['ID_Problema', 'Representacion', 'Evaluacion', 'Vecindad', 'Perturbacion','SolucionPrueba','Version'])
+    return componenteDB,feedbackDB,resultDB, inspiracionDB
 
 def comprobarComponentesCD(problema,componentes:pd.DataFrame,resultDB: pd.DataFrame):
             problemaID, defProblema, _, _, seedPrompt = PromptSamplerOP.generateSeedPrompt(problema)
@@ -378,83 +382,7 @@ def procesarResultadosPorIteracion(resultados: pd.DataFrame,dfProcesado: pd.Data
         print(f"{'='*40}")
         Analisis.procesarResultados(subset, output, f"{pipeline}_iteracion_{iteracion +1}", instancias)
 
-def generarFigurasLatex(dfProcesado, resultadosAux, FallosTot, correctitud, output, pipeline):
-    ## generacion de tablas y figuras
-    latex1 = dfProcesado[['Metaheuristica', 'Resultados', 'Puntaje Real', 'Valor Optimo']].to_latex(index=False, column_format='lrrrr', caption=f'Resultados del procesado {pipeline}.', label=f'tab:{pipeline}_resultados_generales' )
-    for key, count in FallosTot.items():
-        if key not in ['Total Fallos', 'Total Exitos']:
-            print(f"* {key}: {count}")
-    totalExperimentos =  len(resultadosAux)
-    tasaDeFallos = FallosTot['Total Fallos'] / totalExperimentos
-    print(f"Tasa de Fallos {tasaDeFallos:.2%}")
-    dfProcesado['Diferencia Absoluta'] = (dfProcesado['Puntaje Real']-dfProcesado['Valor Optimo']).abs()
-    dfProcesado['Diferencia Porcentual'] = (dfProcesado['Diferencia Absoluta']/dfProcesado['Valor Optimo']).abs()*100 #Valor optimo de EHOP nunca es cero    
-    resultadosAux['Mascara Exito'] = resultadosAux['Puntaje Real'].notna()
-    metricasRendimiento = dfProcesado.groupby('Metaheuristica').agg(
-        exitosTotales = ('Puntaje Real', 'count'),
-        Promedio_Error_Abs =('Diferencia Absoluta', 'mean'),
-        Desviacion_Estandar_Abs = ('Diferencia Absoluta', 'std'),
-        Promedio_Error_Porcentual =('Diferencia Porcentual', 'mean'),
-        Desviacion_Estandar_Porcentual = ('Diferencia Porcentual', 'std')
-    ).reset_index()
-    alpha = 0.05
-    tCritico = t.ppf(1-alpha/2, metricasRendimiento['exitosTotales']-1)
-    #Para saber que tan generlizables son los resultados, considerando la pequeña muestra
-    metricasRendimiento['Intervalo_de_Confianza_Error_Absoluto_Minimo'] = ( metricasRendimiento['Promedio_Error_Abs'] - tCritico * metricasRendimiento['Desviacion_Estandar_Abs']/np.sqrt(metricasRendimiento['exitosTotales']))
-    metricasRendimiento['Intervalo_de_Confianza_Error_Absoluto_Maximo'] = ( metricasRendimiento['Promedio_Error_Abs'] + tCritico * metricasRendimiento['Desviacion_Estandar_Abs']/np.sqrt(metricasRendimiento['exitosTotales']))
-    metricasRendimiento['Intervalo_de_Confianza_Error_Porcentual_Minimo'] = ( metricasRendimiento['Promedio_Error_Porcentual'] - tCritico * metricasRendimiento['Desviacion_Estandar_Porcentual']/np.sqrt(metricasRendimiento['exitosTotales']))
-    metricasRendimiento['Intervalo_de_Confianza_Error_Porcentual_Maximo'] = ( metricasRendimiento['Promedio_Error_Porcentual'] + tCritico * metricasRendimiento['Desviacion_Estandar_Porcentual']/np.sqrt(metricasRendimiento['exitosTotales']))
-    print("--- Metricas estandar de desempeño ---")
-    print(metricasRendimiento[['Metaheuristica','Promedio_Error_Porcentual', 'Desviacion_Estandar_Porcentual','Intervalo_de_Confianza_Error_Absoluto_Minimo','Intervalo_de_Confianza_Error_Absoluto_Maximo', 'Promedio_Error_Abs','Desviacion_Estandar_Abs', 'Intervalo_de_Confianza_Error_Porcentual_Minimo', 'Intervalo_de_Confianza_Error_Porcentual_Maximo']])
-    latex2 = metricasRendimiento[['Metaheuristica','Promedio_Error_Porcentual', 'Desviacion_Estandar_Porcentual','Intervalo_de_Confianza_Error_Absoluto_Minimo','Intervalo_de_Confianza_Error_Absoluto_Maximo', 'Promedio_Error_Abs','Desviacion_Estandar_Abs', 'Intervalo_de_Confianza_Error_Porcentual_Minimo', 'Intervalo_de_Confianza_Error_Porcentual_Maximo']].to_latex(index=False, column_format='lrrrrrrrrr', caption=f'Métricas de rendimiento {pipeline}.', label=f'tab:{pipeline}_metricas' )
-    
-    desempeñoPorSolver = resultadosAux.groupby('Metaheuristica')['Mascara Exito'].agg(
-        TotalExperimentos='count',
-        TotalExitos='sum'
-    ).reset_index()
-    print(dfProcesado[['Metaheuristica', 'Resultados', 'Puntaje Real', 'Valor Optimo']])
-    print("--- Desempeño por Solver ---")
-    print(desempeñoPorSolver)
-    
-    desempeñoPorSolver['TotalFallos'] = desempeñoPorSolver['TotalExperimentos'] - desempeñoPorSolver['TotalExitos']
-    desempeñoPorSolver['Tasa de Fallo'] = desempeñoPorSolver['TotalFallos'] / desempeñoPorSolver['TotalExperimentos']
-    
-    print("---Soluciones identicas al optimo---")
-    print(f"Éxitos en la práctica: {correctitud['Soluciones Identicas']} / {len(dfProcesado)} "
-          f"({correctitud['Soluciones Identicas']/len(dfProcesado):.2%})")
-    print(f"Fallos en la práctica: {correctitud['Soluciones Distintas']} / {len(dfProcesado)} "
-          f"({correctitud['Soluciones Distintas']/len(dfProcesado):.2%})")
 
-    print("--- Tasa De Fallo por solver ---")
-    print(desempeñoPorSolver[['Metaheuristica', 'TotalExperimentos', 'Tasa de Fallo']].sort_values(by='Tasa de Fallo'))
-    latex3 = desempeñoPorSolver[['Metaheuristica', 'TotalExperimentos', 'Tasa de Fallo']].sort_values(by='Tasa de Fallo').to_latex(index=False, column_format='lrrr', caption=f'Tasa de fallo del procesado {pipeline}.', label=f'tab:{pipeline}_fallos' )
-    
-    with open(output, 'a', encoding='utf-8') as f:
-        ##tabla automagica en latex
-        f.write("\\begin{table}[H]\n")
-        f.write("\\centering\n")
-        f.write("\\caption{Resumen de fallos del procesado %s}\n" % pipeline)
-        f.write("\\label{tab:%s_resumen_fallos}\n" % pipeline)
-        f.write("\\begin{tabular}{lr}\n")
-        f.write("\\hline\n")
-        f.write("Tipo de fallo & Cantidad \\\\\n")
-        f.write("\\hline\n")
-        for key, count in FallosTot.items():
-            if key not in ['Total Fallos', 'Total Exitos']:
-                f.write(f"{key.replace('_',' ')} & {count} \\\\\n")
-        f.write("\\hline\n")
-        f.write(f"Tasa de Fallos & {tasaDeFallos:.2%} \\\\\n")
-        f.write("\\hline\n")
-        f.write("\\end{tabular}\n")
-        f.write("\\end{table}\n\n")
-        f.write("----------------------\n\n")
-        
-        f.write(latex1);f.write('----------------------\n\n')
-        f.write(latex2);f.write('----------------------\n\n')
-        f.write(latex3)
-
-    Plotter.graficos_por_pipeline(FallosTot, desempeñoPorSolver, metricasRendimiento, totalExperimentos, pipeline)
-    return FallosTot, desempeñoPorSolver, metricasRendimiento
 
 def cronometrarFuncion(func: Callable, *args, **kwargs) -> tuple[float, any]:
     inicio = time.perf_counter()

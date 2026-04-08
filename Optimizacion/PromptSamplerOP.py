@@ -32,7 +32,7 @@ CRITICAL_INSTRUCTIONS:
 4.GENERATED_CODE_MUST_BE_COMPATIBLE_WITH_SAMPLE_SOL
 5.CODE_MUST_INCLUDE_ALL_NECESARY_IMPORTS_ENVIROMENT_HEAVILY_SANDBOXED.
 6.PROBLEM_DATA_MUST_BE_OBTAINED_FROM_DATACLASS_VIA_DIRECT_ACCESS_ONLY.
-7.EXTERNAL_DATA_MUST_BE_PASSED_AS_ARGUMENT_DATA_MUST_BE_ENCODED_OR_EMBEDDED.
+7.SOLUTION_SOURCE_IS_ARGUMENT_ONLY. DATACLASS_CONTAINS_PROBLEM_DATA_ONLY.
                         
 INSPIRATIONS:
 $Inspirations                        
@@ -66,7 +66,7 @@ CRITICAL_INSTRUCTIONS:
 4.GENERATED_CODE_MUST_BE_COMPATIBLE_WITH_SAMPLE_SOL
 5.CODE_MUST_INCLUDE_ALL_NECESARY_IMPORTS_ENVIROMENT_HEAVILY_SANDBOXED.
 6.PROBLEM_DATA_MUST_BE_OBTAINED_FROM_DATACLASS_VIA_DIRECT_ACCESS_ONLY.
-7.EXTERNAL_DATA_MUST_BE_PASSED_AS_ARGUMENT_DATA_MUST_BE_ENCODED_OR_EMBEDDED.
+7.SOLUTION_SOURCE_IS_ARGUMENT_ONLY. DATACLASS_CONTAINS_PROBLEM_DATA_ONLY.
                         
 INSPIRATIONS:
 $Inspirations
@@ -100,7 +100,7 @@ CRITICAL_INSTRUCTIONS:
 4.GENERATED_CODE_MUST_BE_COMPATIBLE_WITH_SAMPLE_SOL
 5.CODE_MUST_INCLUDE_ALL_NECESARY_IMPORTS_ENVIROMENT_HEAVILY_SANDBOXED.
 6.PROBLEM_DATA_MUST_BE_OBTAINED_FROM_DATACLASS_VIA_DIRECT_ACCESS_ONLY.
-7.EXTERNAL_DATA_MUST_BE_PASSED_AS_ARGUMENT_DATA_MUST_BE_ENCODED_OR_EMBEDDED.
+7.SOLUTION_SOURCE_IS_ARGUMENT_ONLY. DATACLASS_CONTAINS_PROBLEM_DATA_ONLY.
                         
 INSPIRATIONS:
 $Inspirations
@@ -134,7 +134,7 @@ CRITICAL_INSTRUCTIONS:
 4.GENERATED_CODE_MUST_BE_COMPATIBLE_WITH_SAMPLE_SOL
 5.CODE_MUST_INCLUDE_ALL_NECESARY_IMPORTS_ENVIROMENT_HEAVILY_SANDBOXED.
 6.PROBLEM_DATA_MUST_BE_OBTAINED_FROM_DATACLASS_VIA_DIRECT_ACCESS_ONLY.
-7.EXTERNAL_DATA_MUST_BE_PASSED_AS_ARGUMENT_DATA_MUST_BE_ENCODED_OR_EMBEDDED.
+7.SOLUTION_SOURCE_IS_ARGUMENT_ONLY. DATACLASS_CONTAINS_PROBLEM_DATA_ONLY.
                         
 INSPIRATIONS:
 $Inspirations    
@@ -166,14 +166,14 @@ OUTPUT_JSON_SCHEMA:{"REPRESENTATION": "...", "PERTURB_CODE": "..."}
 PERTURB_CODE_DEF:PYTHON_FUNC.NAME=perturb_solution.ARGS=2(solution,dataclass).OP_PERTURBED_SOLUTION.SIG=def perturb_solution(solution,dataclass):
 
 CRITICAL_INSTRUCTIONS:
-1.CODE_SYNTAX_CORRECT_FUNC_SELF_CONTAINED_SCHEMA_WILL_BE_GIVEN_AS_INSTANCED_DATACLASS.
+1.CODE_SYNTAX_CORRECT_FUNC_SELF_CONTAINED_DATA_WILL_BE_GIVEN_AS_INSTANCED_DATACLASS.
 2.AVOID_EXPLANATION_OR_COMMENTS
 3.PERTURB_CODE_SIG_MUST_BE_def perturb_solution(solution,dataclass):
 4.GENERATED_CODE_MUST_BE_COMPATIBLE_WITH_SAMPLE_SOL
 5.CODE_MUST_INCLUDE_ALL_NECESARY_IMPORTS_ENVIROMENT_HEAVILY_SANDBOXED.
 6.PROBLEM_DATA_MUST_BE_OBTAINED_FROM_DATACLASS_VIA_DIRECT_ACCESS_ONLY.
-7.EXTERNAL_DATA_MUST_BE_PASSED_AS_ARGUMENT_DATA_MUST_BE_ENCODED_OR_EMBEDDED.
-                        
+7.SOLUTION_SOURCE_IS_ARGUMENT_ONLY. DATACLASS_CONTAINS_PROBLEM_DATA_ONLY.
+                                                         
 INSPIRATIONS:
 $Inspirations
 RESULTS_FORMAT "{current, currentScore, best, bestScore}"
@@ -210,7 +210,7 @@ CRITICAL_INSTRUCTIONS:
 4.GENERATED_CODE_MUST_BE_COMPATIBLE_WITH_SAMPLE_SOL;STANDARD_FORMAT_IS_0_INDEX_UNLESS_SPECIFIED_OTHERWISE
 5.CODE_MUST_INCLUDE_ALL_NECESARY_IMPORTS_ENVIROMENT_HEAVILY_SANDBOXED.
 6.PROBLEM_DATA_MUST_BE_OBTAINED_FROM_DATACLASS_VIA_DIRECT_ACCESS_ONLY.
-7.EXTERNAL_DATA_MUST_BE_PASSED_AS_ARGUMENT_DATA_MUST_BE_ENCODED_OR_EMBEDDED.
+7.SOLUTION_SOURCE_IS_ARGUMENT_ONLY. DATACLASS_CONTAINS_PROBLEM_DATA_ONLY.
                         
 INSPIRATIONS:
 $Inspirations
@@ -226,12 +226,12 @@ FEEDBACK_INSTRUCTIONS:
 1.GENERATE_CONSTRUCTIVE_FEEDBACK:ONLY_FLAG_ERRORS_THAT_CRASH_LOCAL_SOLVER
 2.FORMAT_AS_KEY_VALUE_PAIRS.EX: "E_CODE_PARSE_ERROR: Solution is string, while E_CODE expects an array"
 3.IF_ERRORS_FOUND_PINPOINT_SPECIFIC_FLAW_SUGGEST_SPECIFIC_IMPROVEMENT. MAXIMUM_4_ITEMS_ALLOWED_ONLY_SUGGEST_CHANGES_IF_REDUCES_ERROR_COUNT
-4.PROBLEM_DATA,KNOWN_RANDOM_SOLUTION_AND_VALUE_GIVEN: USE_PYTHON_TOOL_TO_EVALUATE_COMPONENTS_TO_ASSERT_CORRECTNESS_OF_COMPONENTS
+4.PROBLEM_DATACLASS,KNOWN_RANDOM_SOLUTION_AND_VALUE_GIVEN: USE_PYTHON_TOOL_TO_EVALUATE_COMPONENTS_TO_ASSERT_CORRECTNESS_OF_COMPONENTS
 5.LOCAL_SOLVER_DESIGNED_FOR_EVALUATION_EXTRA_OUTPUTS_ARE_EXPECTED
 6.CODE_MUST_BE_COMPATIBLE_WITH_SAMPLE_SOLUTION_AND_LOCAL_SOLVER
 7.LOCAL_SOLVER_CANNOT_OBTAIN_PROBLEM_DATA_DIRECTLY_FUNCTIONS_MUST_DO_IT_VIA_DIRECT_ACCESS_ONLY
 8.DO_NOT_FIX_SUCCESS: IF_SCORE_BEATS_KNOWN_BEST_WHILE_CONSISTENT_WITH_DATA_AND_CONSTRAINTS_OUTPUT: "CODE_STATUS: OPTIMAL"
-PROBLEM_DATA:
+PROBLEM_DATACLASS:
 ---
 $schema
 ---
@@ -276,72 +276,72 @@ def generarStrings(dataframe):
         return  "\n".join(dataframe['Text'].astype(str).tolist())
     else: return f"{len(dataframe)} items found."
 
-def generateEvalPrompt(schema,objetivo, restricciones, samplesol):
+def generateEvalPrompt(schema,objetivo, restricciones, samplesol,inspirations):
     prompt = templateEval.safe_substitute(
         schema = schema,
         objective = objetivo,
         constraints = restricciones,
         sampleSol = samplesol, 
-        Inspirations = 'NA'
+        Inspirations = inspirations
     ) 
     return prompt
 #Updatea el prompt, assume una sola fila por version. 
 
-def updateEvalPrompt(schema,objetivo, restricciones, resultados, feedback,samplesol):
+def updateEvalPrompt(schema,objetivo, restricciones, resultados, feedback,samplesol,inspirations):
     prompt = templateEvalUpdate.safe_substitute(
         schema = schema,
         objective = objetivo,
         constraints = restricciones,
         sampleSol = samplesol,
-        Inspirations = 'NA',
-        Resultados=resultados,
+        Inspirations = inspirations,
+        Resultados = resultados,
         Feedback = feedback
     )
     return prompt
 
-def generateNBPrompt(schema,objetivo, restricciones,samplesol):
+def generateNBPrompt(schema,objetivo, restricciones,samplesol,inspirations):
     prompt = templateNB.safe_substitute(
         schema = schema,
         objective = objetivo,
         constraints = restricciones,
         sampleSol = samplesol, 
-        Inspirations = 'NA'
+        Inspirations = inspirations
     ) 
     return prompt
 #Updatea el prompt, assume una sola fila por version. 
 
-def updateNBPrompt(schema,objetivo, restricciones, resultados, feedback,samplesol):
+def updateNBPrompt(schema,objetivo, restricciones, resultados, feedback,samplesol,inspirations):
     prompt = templateNBUpdate.safe_substitute(
         schema = schema,
         objective = objetivo,
         constraints = restricciones,
         sampleSol = samplesol,
-        Inspirations = 'NA',
-        Resultados=resultados,
+        Inspirations = inspirations,
+        Resultados = resultados,
         Feedback = feedback
     )
     return prompt
 
 
-def generatePerturbPrompt(schema,objetivo, restricciones, samplesol):
+def generatePerturbPrompt(schema,objetivo, restricciones, samplesol,inspirations):
     prompt = templatePerturb.safe_substitute(
         schema = schema,
         objective = objetivo,
         constraints = restricciones,
         sampleSol = samplesol, 
-        Inspirations = 'NA'
+        Inspirations = inspirations
     ) 
     return prompt
 #Updatea el prompt, assume una sola fila por version. 
 
-def updatePerturbPrompt(schema,objetivo, restricciones, resultados, feedback, samplesol):
+def updatePerturbPrompt(schema,objetivo, restricciones, resultados, feedback, samplesol,inspirations):
     prompt = templatePerturbUpdate.safe_substitute(
         schema = schema,
         objective = objetivo,
         constraints = restricciones,
         sampleSol = samplesol,
-        Inspirations = 'NA',
-        Resultados=resultados,
+        Inspirations = inspirations,
+        Resultados = resultados,
         Feedback = feedback
     )
     return prompt

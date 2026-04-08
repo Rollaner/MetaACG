@@ -10,14 +10,15 @@ NAME = "TSP"
 @dataclass
 class InstanciaPruebaTSP:
     #name: str | None = None
-    dimension: int = 0
-    tipoPesoAristas: str | None = None
-    formatoPesoAristas: Optional[str]
-    #comment: Optional[str] 
+    tipoPesoAristas: str = "none"
+    formatoPesoAristas: Optional[str] = "none"
     pesoAristas: np.ndarray = field(default_factory=lambda: np.array([]))
     solution: tuple[int] = field(default_factory=tuple)
+    dimension: int = 0
+    #comment: Optional[str] 
     score: float = 0.0 
     time: float = 0.0 
+   
 
 def getSchema():
     return inspect.getsource(InstanciaPruebaTSP), InstanciaPruebaTSP, InstanciaPruebaTSP()
@@ -54,20 +55,20 @@ def _cargarDatos(datos): #Solo acepta tipo explicito.
     return key, dimension, tipoPesoAristas, pesoAristas,formatoPesoAristas 
 
 def _cargarDatosAlt(datos): #Solo acepta tipo explicito. 
-    key = datos.split('/')[-1]
     #name = None
     dimension = None
     tipoPesoAristas = None
     formatoPesoAristas = None
     #comment = None
-    for line in datos:
+    lines = datos.splitlines()
+    for i, line in enumerate(lines):  
         line = line.strip()
         if not line:
             continue
         parts = line.split(':')
         if len(parts) >= 2:
             nombreCampo = parts[0].strip()
-            contCampo = ':'.join(parts[1:]).strip()     
+            contCampo = ':'.join(parts[1:]).strip()  
             if nombreCampo == 'NAME':
                 _name = contCampo
             elif nombreCampo == 'DIMENSION':
@@ -78,13 +79,13 @@ def _cargarDatosAlt(datos): #Solo acepta tipo explicito.
                 formatoPesoAristas = contCampo
             elif nombreCampo == 'COMMENT':
                 _comment = contCampo
-            elif nombreCampo == 'EDGE_WEIGHT_SECTION':
-                pesoAristas = _leerPesosAristas(datos, dimension, formatoPesoAristas)
-                break
-    return key, dimension, tipoPesoAristas, pesoAristas,formatoPesoAristas 
+        elif line == 'EDGE_WEIGHT_SECTION':
+            pesoAristas = _leerPesosAristas(iter(lines[i+1:]), dimension, formatoPesoAristas)
+            break
+    return dimension, tipoPesoAristas, pesoAristas,formatoPesoAristas 
 
 def _leerPesosAristas(file, dimension, formatoPesoAristas):
-    if formatoPesoAristas in ['UPPER_ROW''LOWER_DIAG_ROW']:
+    if formatoPesoAristas in ['UPPER_ROW','LOWER_DIAG_ROW']:
         valores = []
         for line in file:
             line = line.strip()
@@ -107,7 +108,7 @@ def _leerPesosAristas(file, dimension, formatoPesoAristas):
 
 def cargarTest(dataTestStore, filePath): #Se assume que los problemas son simetricos
     key, dimension, tipoPesoAristas, pesoAristas, formatoPesoAristas = _cargarDatos(filePath)
-    solucion, puntaje, tiempo = generarSolucionGreedyTSP(pesoAristas, dimension)
+    solucion, puntaje, tiempo = _generarSolucionGreedyTSP(pesoAristas, dimension)
     dataTestStore[key] = InstanciaPruebaTSP(
 #       name=name,
         dimension=dimension,
@@ -122,53 +123,54 @@ def cargarTest(dataTestStore, filePath): #Se assume que los problemas son simetr
     return dataTestStore
 
 
-def generarSolucionGreedyTSP(pesoAristas: np.array ,dimension: int, subtipo="standard"):
-    solucion: list[int] = [] 
-    puntaje:int = 0 
+def _generarSolucionGreedyTSP(pesoAristas: np.array ,dimension: int, subtipo="standard"):
+    visitado = np.zeros(dimension, dtype=bool)
+    ciudadActual = 0
+    solucion = [ciudadActual]
+    puntaje = 0
     tiempo = 0
-    visitado = bytearray(dimension)
-    ciudadesVisitadas: int = 0
-    ciudadActual:int = 1 
-    solucion.append(ciudadActual)
-    while ciudadesVisitadas < dimension:
-        if not visitado[ciudadActual]:
-            posibilidades = np.where((np.frombuffer(visitado, dtype='u1') == 1 | pesoAristas[ciudadActual]  > 0), np.inf, pesoAristas[ciudadActual])
-            if subtipo == "inverted":
-                siguienteDestino = np.argmax(posibilidades)
-            else:
-                siguienteDestino = np.argmin(posibilidades)
-            puntaje += pesoAristas[ciudadActual,siguienteDestino]
-            visitado[ciudadActual] = 1
-            ciudadesVisitadas -= 1
+    visitado[ciudadActual] = True
+
+    for _ in range(dimension - 1):
+        pesos = pesoAristas[ciudadActual].copy()
+        pesos[visitado] = np.inf if subtipo != "inverted" else -np.inf
+
+        siguienteDestino = np.argmin(pesos) if subtipo != "inverted" else np.argmax(pesos)
+        
+        puntaje += pesoAristas[ciudadActual, siguienteDestino]
+        visitado[siguienteDestino] = True
+        solucion.append(siguienteDestino)
         ciudadActual = siguienteDestino
+
+    # Add return to start
+    puntaje += pesoAristas[ciudadActual, solucion[0]]
+    puntaje = int(puntaje)
+    solucion = [int(c) + 1 for c in solucion] 
     return solucion, puntaje, tiempo
 
-def parsearSolucion(claveInstancia: str, solutionContent: str) -> Tuple[int, List[int]] | None: #Pendiente, todavia no unterpreto bien los resultados
-        stringValores = solutionContent.replace('\n', ' ').replace(',', ' ',).split()
-        if not stringValores:
+def parsearSolucion(claveInstancia: str, solutionContent: str):
+    try:
+        lines = [l.strip() for l in solutionContent.strip().splitlines() if l.strip()]
+        soluciones = []
+        i = 0
+        while i < len(lines) - 1:
+            try:
+                cost = int(lines[i])
+                tour = [int(v) for v in lines[i+1].replace(',', ' ').split()]
+                soluciones.append((cost, tour))
+                i += 2
+            except ValueError:
+                i += 1
+        if not soluciones:
             return None
-        try:
-            soluciones = []
-            i = 0
-            while i < len(stringValores) - 1:
-                cost = int(stringValores[i])
-                if ',' in stringValores[i + 1]:
-                    stringValores = stringValores[i + 1].replace(',', ' ').split()
-                    tour = [int(v) for v in stringValores]
-                    soluciones.append((cost, tour))
-                    i += 2
-                else:
-                    i += 1
-            if not soluciones:
-                return None
-            valorObtenido, arraySolucion = min(soluciones, key=lambda s: s[0])
-            return (valorObtenido, arraySolucion)
-        except ValueError as e:
-            print(f"Error parseando la solucion de {claveInstancia}. El contenido era: '{solutionContent.strip()}'. Error: {e}")
+        valorObjetivo, arraySolucion = min(soluciones, key=lambda s: s[0])
+        return valorObjetivo, arraySolucion
+    except Exception as e:
+        print(f"Error parseando solucion de {claveInstancia}: {e}")
         return None
 
 def generarSolucion(claveInstancia: str,  contenidoInstancia,subtipo: str):
-    key, dimension, tipoPesoAristas, pesoAristas, formatoPesoAristas = _cargarDatosAlt(contenidoInstancia)
-    solucion, valor, tiempo = generarSolucionGreedyTSP(pesoAristas, dimension, subtipo)
+    dimension,_, pesoAristas, _,= _cargarDatosAlt(contenidoInstancia)
+    solucion, valor, tiempo = _generarSolucionGreedyTSP(pesoAristas, dimension, subtipo)
     return solucion, valor
 

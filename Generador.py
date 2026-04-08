@@ -9,7 +9,7 @@ class generador:
     #SYSTEMPROMPT_DEEPSEEK:str
     #SYSTEMPROMPT_GEMINI:str
     #SYSTEMPROMPT_OTHER:str
-    Definidor: any 
+    Preparador: any 
     Evaluador: any
     Optimizador: any
 
@@ -38,8 +38,8 @@ class generador:
 # LO anterior estaba ahi para alinear el modelo, pero puede que sea la causa de la friccion excesiva, en base a como el algoritmo de feedback entrega su informacion
 #Eliminado para probar
 
-    def generarDefinicion(self,prompt):
-        respuesta = self.Definidor.invoke([SystemMessage(content= self.SYSTEMPROMPT_OPENAI),HumanMessage(content=prompt)]) ## ROL, Guianza E Instrucciones
+    def extraccionDatos(self,prompt):
+        respuesta = self.Preparador.invoke([SystemMessage(content= self.SYSTEMPROMPT_OPENAI),HumanMessage(content=prompt)]) ## ROL, Guianza E Instrucciones
         return respuesta
 
     def generarFeedback(self,prompt): 
@@ -55,9 +55,9 @@ class generador:
         return respuesta
 
     def cargarLLMs(self): ## To-Do: crear estructura de datos que contanga el enjambre de LLMS
-        self.Definidor = ChatOpenAI(
+        self.Preparador = ChatOpenAI(
             model = 'gpt-5-mini',
-            temperature = 0.7,
+            temperature = 0.5,
             timeout=None,
             max_retries=2,
             ).bind_tools([{"type": "code_interpreter","container": {"type": "auto"},}])

@@ -1,4 +1,6 @@
 import ast
+import inspect
+import linecache
 import time
 import numbers
 from typing import Any, Callable, Dict, Tuple,List, Union
@@ -13,6 +15,7 @@ import Heuristicas.HillClimbing
 import traceback
 import sys
 import json
+import numpy as np
 
 #Recalibración de las LLMS
 def reiniciarLLMS():
@@ -34,10 +37,10 @@ def extraerDatosProblema(problemaSample:pd.DataFrame):
     knownObj = problemaSample.Valor_Objetivo
     return problemaID, inspiraciones, knownSol, knownObj
 
-def generacionComponentesInicial(schema,objetivo, restricciones, llms, sampleSol):
-    promptEval = generateEvalPrompt(schema,objetivo, restricciones, sampleSol)
-    promptNb = generateNBPrompt(schema,objetivo, restricciones, sampleSol)
-    promptPerturb = generatePerturbPrompt(schema,objetivo, restricciones, sampleSol)
+def generacionComponentesInicial(schema,objetivo, restricciones, llms, sampleSol,inspiracionEval,inspiracionPerturb,inspiracionNB):
+    promptEval = generateEvalPrompt(schema,objetivo, restricciones, sampleSol,inspiracionEval)
+    promptNb = generateNBPrompt(schema,objetivo, restricciones, sampleSol,inspiracionNB)
+    promptPerturb = generatePerturbPrompt(schema,objetivo, restricciones, sampleSol,inspiracionPerturb)
     RawEval = llms.generarComponente(promptEval)
     RawNb = llms.generarComponente(promptNb)
     RawPerturb = llms.generarComponente(promptPerturb)
@@ -50,11 +53,11 @@ def generacionComponentesInicial(schema,objetivo, restricciones, llms, sampleSol
     #print(Eval['REPRESENTATION'],Eval['EVAL_CODE'], Nb['NB_CODE'], Perturb['PERTURB_CODE'])
     return Eval, Nb, Perturb, Eval['REPRESENTATION']
 
-def generacionNuevosComponentes(schema,objetivo, restricciones, llms, sampleSol,resultadoSA, resultadoILS,resultadoTS,feedbackTexto) -> Tuple[Any,Any,Any]:
+def generacionNuevosComponentes(schema,objetivo, restricciones, llms, sampleSol,resultadoSA, resultadoILS,resultadoTS,feedbackTexto,inspiracionEval,inspiracionPerturb,inspiracionNB) -> Tuple[Any,Any,Any]: ## Requiere TLC para que considere todos los resultados. Mezclemolos en uno. 
     #Hay que hacer que revisa con cada tipo de resultado. No solo Simmulated Annealing
-    promptEval = updateEvalPrompt(schema,objetivo, restricciones, resultadoSA, feedbackTexto, sampleSol)
-    promptNb = updateNBPrompt(schema,objetivo, restricciones,resultadoSA, feedbackTexto, sampleSol)
-    promptPerturb = updatePerturbPrompt(schema,objetivo, restricciones,resultadoSA, feedbackTexto, sampleSol)
+    promptEval = updateEvalPrompt(schema,objetivo, restricciones, resultadoTS, feedbackTexto, sampleSol,inspiracionEval)
+    promptNb = updateNBPrompt(schema,objetivo, restricciones,resultadoTS, feedbackTexto, sampleSol,inspiracionNB)
+    promptPerturb = updatePerturbPrompt(schema,objetivo, restricciones,resultadoTS, feedbackTexto, sampleSol,inspiracionPerturb)
     RawEval = llms.generarComponente(promptEval)
     RawNb = llms.generarComponente(promptNb)
     RawPerturb = llms.generarComponente(promptPerturb)
@@ -73,14 +76,15 @@ def generacionNuevosComponentes(schema,objetivo, restricciones, llms, sampleSol,
 #actualmente solo esta evaluando 1 componente a la vez, tiene que evaluar sets de componentes. Representacion, Vecindad y Evaluacion
 
 
-def optimizarProblemaPreparadoDB(problema,schema,problemData, componenteDB:pd.DataFrame,resultDB: pd.DataFrame,feedbackDB: pd.DataFrame, iteraciones):
+def optimizarProblemaPreparadoDB(problema,schema,problemData, componenteDB:pd.DataFrame,resultDB: pd.DataFrame,feedbackDB: pd.DataFrame,inspiracionDB:pd.DataFrame, iteraciones):
         ### generacion inicial
         llms = generador()
         llms.cargarLLMs()
         problemaID, jsonProblema, knownSol, knownObj = extraerDatosProblema(problema)
         print(problemaID)
         objetivo, restricciones = jsonProblema['OBJECTIVE'], jsonProblema['CONSTRAINTS']
-        Eval, Nb, Perturb, representacion = generacionComponentesInicial(schema, objetivo, restricciones,llms, knownSol)
+        inspiracionEval,inspiracionPerturb,inspiracionNB = cargarInspiraciones(inspiracionDB)
+        Eval, Nb, Perturb, representacion = generacionComponentesInicial(schema, objetivo, restricciones,llms, knownSol, inspiracionEval,inspiracionPerturb,inspiracionNB)
         componenteDB = guardarComponentes(problemaID,componenteDB,representacion, Eval, Nb, Perturb, knownSol, iteraciones)
         respuestas = [] #Temporal, para guardar todas las respuestas de generacion de componentes para tener la metadata.
         feedbacks = []
@@ -110,16 +114,20 @@ def optimizarProblemaPreparadoDB(problema,schema,problemData, componenteDB:pd.Da
             #    resultDB = guardarResultado(problemaID,resultDB,representacion,Eval,Nb,Perturb,resultadoILS,SampleSol, sample.solution, "ILS", tiempoILS)
             #    resultDB = guardarResultado(problemaID,resultDB,representacion,Eval,Nb,Perturb,resultadoTS,SampleSol, sample.solution, "TS", tiempoTS)
             #    resultDB = guardarResultado(problemaID,resultDB,representacion,Eval,Nb,Perturb,resultadoHC,SampleSol, sample.solution, "HC", tiempoHC)
+            ### Corte temprano
+
+            if componentesCorrectos(knownSol,knownObj,resultadoSA,resultadoTS,resultadoILS,resultadoHC):
+                inspiracionDB = guardarComponentes(problemaID,inspiracionDB,representacion, Eval, Nb, Perturb, knownSol, i)
+                return componenteDB, feedbackDB, resultDB, inspiracionDB
+            ### Retroalimentacion
             feedbackPrompt = generateFeedbackPrompt(problemData, objetivo, restricciones,Eval, Nb, Perturb, knownSol,resultadoSA, resultadoILS,resultadoTS, "NA", "NA", i) #Necesita trabajar con el nuevo sistema de JSON
             feedback = llms.generarFeedback(feedbackPrompt) 
             feedbacks.append(feedback)
             feedbackTexto = feedback.content[0]['text']
+            print(f"feedback:{'-'*60}\n")
+            print(feedbackTexto)
             feedbackDB = guardarFeedback(problemaID,feedbackDB,representacion,Eval, Nb, Perturb, i,feedbackTexto)
-            ### Corte temprano
-            if componentesCorrectos(knownSol,knownObj,resultadoSA,resultadoTS,resultadoILS,resultadoHC):
-                return componenteDB, feedbackDB, resultDB
-            ### Retroalimentacion
-            respuesta = generacionNuevosComponentes(schema, objetivo, restricciones,llms,knownSol,resultadoSA,resultadoILS, resultadoTS,feedbackTexto)
+            respuesta = generacionNuevosComponentes(schema, objetivo, restricciones,llms,knownSol,resultadoSA,resultadoILS, resultadoTS,feedbackTexto,inspiracionEval,inspiracionPerturb,inspiracionNB)
             respuestas.append(respuesta)
             Eval, Nb, Perturb, representacion = respuesta
             componenteDB = guardarComponentes(problemaID,componenteDB,representacion, Eval, Nb, Perturb, knownSol, i)
@@ -135,17 +143,22 @@ def optimizarProblemaPreparadoDB(problema,schema,problemData, componenteDB:pd.Da
         resultDB = guardarResultado(problemaID,i,resultDB,representacion,Eval,Nb,Perturb,resultadoILS,knownSol, "NA", "ILS", tiempoILS)
         resultDB = guardarResultado(problemaID,i,resultDB,representacion,Eval,Nb,Perturb,resultadoTS,knownSol, "NA", "TS", tiempoTS)
         resultDB = guardarResultado(problemaID,i,resultDB,representacion,Eval,Nb,Perturb,resultadoHC,knownSol, "NA", "HC", tiempoHC)       
-        return componenteDB, feedbackDB, resultDB
+        return componenteDB, feedbackDB, resultDB, inspiracionDB
 
 ## Detecta si todo obtuvo resultados validos, y si alguna de las metaheuristicas llego al optimo. Si una lo hizo, sabemos que se puede, y que los componententes estan correctos.
 def componentesCorrectos(knownSol, knownObj, *args):
-    optimoPresente = False, errorNoDetectado = True
+    optimoPresente:bool = False
+    errorNoDetectado:bool = True
     for resultados in args:
-        currentSolucion,currentScore, mejorSolucion, mejorScore = resultados
+        try: 
+            currentSolucion,currentScore, mejorSolucion, mejorScore = resultados
+        except Exception as e:
+            #print(f"Error fatal de procesado en: {resultados}")
+            return False #estos NO estan correctos, algo no paso.
         if (mejorSolucion == knownSol and mejorScore == knownObj):
             optimoPresente = True
-        if (isinstance(currentSolucion,numbers.Real) or not isinstance(currentScore,numbers.Real) or not isinstance(mejorSolucion,numbers.Real) or not isinstance(mejorScore,numbers.Real)):
-            errorNoDetectado = False            
+        if (not isinstance(currentSolucion, (list, tuple)) or not isinstance(currentScore, numbers.Real) or not isinstance(mejorSolucion, (list, tuple))or not isinstance(mejorScore, numbers.Real)):
+            errorNoDetectado = False        
     return (optimoPresente and errorNoDetectado)
 
 
@@ -213,17 +226,17 @@ def evaluarComponentes(Heuristica,Eval, Nb, Perturb,problemData, SampleSol, Para
             return(generarDiagnostico(f"Failed to load SAMPLE_SOL: {e}"))
     else: solucionPrueba = SampleSol
     try:
-        evaluacion = cargarComponente(Eval['EVAL_CODE'])
+        evaluacion = cargarComponente(Eval['EVAL_CODE'], "<evaluate_solution>")
         print(f"Loaded 'EVAL_CODE' into variable 'evaluate_solution'. Name: {eval.__name__}")
     except Exception as e:
         return(generarDiagnostico(f"Failed to load EVAL_CODE: {e}"))
     try:
-        vecindad = cargarComponente(Nb['NB_CODE'])
+        vecindad = cargarComponente(Nb['NB_CODE'],"<generate_neighbour>")
         print(f"Loaded 'NB_CODE' into variable 'generate_neighbour'. Name: {vecindad.__name__}")
     except Exception as e:
         return(generarDiagnostico(f"Failed to load NB_CODE: {e}"))
     try:
-        perturb = cargarComponente(Perturb['PERTURB_CODE'])
+        perturb = cargarComponente(Perturb['PERTURB_CODE'], "<perturb_solution>")
         print(f"Loaded 'PERTURB_CODE' into variable 'perturb_solution'. Name: {perturb.__name__}")
     except Exception as e:
         return(generarDiagnostico(f"Failed to load PERTURB_CODE: {e}"))
@@ -272,10 +285,19 @@ def evaluarComponentesSAud(Eval, Nb, Perturb,SampleSol):
     return resultadoSA
 
 #Funcion para cargar componentes genericos, requiere sandboxing.
-def cargarComponente(codigo: str):
+def cargarComponente(codigo: str, nombre: str = "<componente>"):
     variablesLocales: Dict[str, Any] = {}
+    filename = f"<{nombre}>"
+    lines = codigo.splitlines(keepends=True)
+    linecache.cache[filename] = (
+        len(codigo),
+        None,
+        lines,
+        filename
+    )
+    
     try:
-        exec(codigo, globals(), variablesLocales)
+        exec(compile(codigo, filename, "exec"), globals(), variablesLocales)
     except Exception as e:
         raise RuntimeError(f"Error al ejecutar el código (exec): {e}")
     for key, value in variablesLocales.items():
@@ -299,7 +321,8 @@ def guardarResultado(problemaID, iteracion,resultDB, representacion, evaluacion,
         'Tiempo': tiempo
     }
     dfAux = pd.DataFrame([datosResultado])
-    resultDBMod = pd.concat([resultDB,dfAux], ignore_index=True) #gotta exclude empty and ir all-Na columns
+    dfAux = dfAux.dropna(axis=1, how='all')
+    resultDBMod = pd.concat([resultDB,dfAux], ignore_index=True) #
     return resultDBMod
 
 def guardarFeedback(problemaID,feedbackDB, representacion, Eval, Nb, Perturb, version, feedback):
@@ -315,6 +338,7 @@ def guardarFeedback(problemaID,feedbackDB, representacion, Eval, Nb, Perturb, ve
     dfAux = pd.DataFrame([datosFeedback])
     feedbackDBMod = pd.concat([feedbackDB,dfAux], ignore_index=True)
     return feedbackDBMod
+
 def guardarComponentes(problemaID,componenteDB,representacion, Eval, Nb, Perturb, SampleSol, version):
     datosComponentes = {
         'ID_Problema': problemaID,
@@ -348,12 +372,52 @@ def guardarDatos(datos, header, path):
     except Exception as e:
         print(f"Ocurrio un error al momento de escribir en el archivo: {e}", file=sys.stderr)
 
+def cargarInspiraciones(inspirationDB: pd.DataFrame):
+    #igual que componentes. Pero aqui se extrae del DF. Extraermos columnas 'Evaluacion' 'Vecindad' y 'Perturbacion'. Luego seleccionamos aleatoriamente usando la semilla definida al principio. No es necesario ejecutar el codigo. Solo se carga el texto y se le pasa eso. Si no se encuentra nada. Se returna NA
+    Eval = "NA" 
+    perturb = "NA" 
+    Vecindad = "NA"
+
+    return Eval, perturb, Vecindad
+
 def generarDiagnostico(context_message):
         tipo, error, tb  = sys.exc_info()
+        
+        causa = ""
+        if error.__cause__:
+            causa = f"\nCaused by: {type(error.__cause__).__name__}: {error.__cause__}"
+        elif error.__context__ and not error.__suppress_context__:
+            causa = f"\nDuring handling of: {type(error.__context__).__name__}: {error.__context__}"
+
         ultimoFrame = traceback.extract_tb(tb)[-1]
-        linea = ultimoFrame.line if ultimoFrame.line else "Source code unavailable"
+        linea = ultimoFrame.line
+        lineno  = ultimoFrame.lineno
+        if not linea:
+            filename = ultimoFrame.filename
+            if filename == "<string>":
+            # linecache stores exec()'d source if you register it first (see below)
+                linea = linecache.getline(filename, lineno).strip()
+        if not linea:
+            try:
+                frame_obj = tb
+                while frame_obj.tb_next:
+                    frame_obj = frame_obj.tb_next
+                source_lines, start = inspect.getsourcelines(frame_obj.tb_frame)
+                offset = lineno - start
+                if 0 <= offset < len(source_lines):
+                    linea = source_lines[offset].strip()
+            except (OSError, TypeError):
+                pass
+
+        if not linea:
+            linea = "<source unavailable>"
+        
+        full_tb = "".join(traceback.format_tb(tb))
         return (f"{context_message}\n"
                 f"Type: {tipo.__name__}\n"
-                f"Message: {error}\n"
-                f"Line; {ultimoFrame.lineno}\n"
-                f"Code: {ultimoFrame.line}")
+                f"Message: {error}{causa}\n"
+                f"Line; {lineno}\n"
+                f"Code: {linea}"
+                f"{'-'*60}\n"
+                f"  Full Traceback:\n{full_tb}"
+                f"{'='*60}")

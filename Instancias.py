@@ -3,7 +3,7 @@ import importlib
 import os
 import glob
 from dataclasses import dataclass
-from typing import List, Tuple, Union
+from typing import List, Tuple, Union, Any
 import pandas as pd
 
 
@@ -18,7 +18,7 @@ class NLInstance:
     instanceContent: str #Valores numericos de la instancia como tal: AKA, los valores de EHOP en bruto
     solutionContent: str #Valores de la solucion optima
     parsedSolution: Union[List[int], List[float], List[List[int]], None] # Placeholder, solucion en fomato utilizable por codigo
-    objectiveScore: int #Valor esperado de la funcion objetivo
+    objectiveScore: Any #Valor esperado de la funcion objetivo
 
 class DataLoader:
     def __init__(self, basePath: str = "Data/", NLPath: str = "Data/NL/", testPath: str = "Data/Tests", modulePath: str = "ModulosProblema"):
@@ -30,9 +30,12 @@ class DataLoader:
         self.dataTestStore: dict[str, any] = {}
         self._modulos: dict[str, object] = {}
         self.claves: dict[str,str] = {}
+        listaModulos = self.cargarModulos()
+        self.prepararClaves(listaModulos)
         
 
     def getClaves(self):
+        print(self.claves)
         return self.claves
 
     def cargarModulos(self):
@@ -77,8 +80,6 @@ class DataLoader:
         self.claves = claves
     
     def cargarProblemas(self,tipoProblema):
-        listaModulos = self.cargarModulos()
-        self.prepararClaves(listaModulos)
         datasets = ["hard_dataset", "random_dataset"]
         nombreCompleto = self.getNombreCompleto(tipoProblema)
         self.cargarPruebas(nombreCompleto),
