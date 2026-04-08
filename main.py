@@ -19,6 +19,7 @@ from Preparacion import Preparacion
 from Instancias import DataLoader
 from Generador import generador
 from Optimizacion import Optimizacion
+from io import StringIO
 
 
 def main():
@@ -26,11 +27,13 @@ def main():
     iteraciones = 3 #Genracion se atasca muy seguido. Se prueba sin reiniciar, luego probabos con reinicio. 
     filaMultiplo = 3
     instancias = DataLoader()
+    pipeline = "full"
     #Inicializar datos
     load_dotenv()
+   
     #Modificacion para pruebas, prepara modo batch por defecto. Mas rapido en caso de que el codigo falle
     if len(sys.argv) == 1:
-        sys.argv.extend(['TS', 'traveling_salesman_hard_dataset_in_house_9_24', '-plt'])
+        sys.argv.extend(['TS', 'traveling_salesman_hard_dataset_in_house_9_24', '-p'])
     pathDB= os.path.join(os.path.dirname(__file__), 'Data')
     #Fin modificacion para pruebas
     parser = argparse.ArgumentParser()
@@ -42,18 +45,19 @@ def main():
     parser.add_argument('-o', '--opt',action='store_true', dest='opt', help='Solo optimizar, pero espera preparacion previa- Usar despues the -p o --prep. sin solucion conocida')
     parser.add_argument('-np', '--noprep',action='store_true', dest='skip_prep', help='Optimizar pero sin preparar antes, incompatible con --prep/-p y --opt/-o')
     parser.add_argument('-plt', '--plot',action='store_true', dest='plot', help='Procesar resultados')
+    parser.add_argument('-s', '--seed',action='store_true', dest='seed', help='Semilla para operaciones aleatorias a utilizar')
      ## puede que lo podamos reciclar para otra cosa, sino eliminar
     parser.add_argument('-qt','--quicktest',action='store_true', dest='quicktest', help='Probar funcionalidad de componentes generados')
     args=parser.parse_args()
     tipoProblema = args.tipoProblema
+    if args.seed: semilla = args.seed
     os.makedirs(pathDB, exist_ok=True)
     problemasPath = os.path.join(pathDB, f'problemas-{tipoProblema}.jsonl')
-    #problemasPath = os.path.join(pathDB, f'problemas-{tipoProblema-subtipoProblema}.jsonl')
     dataStructPath = os.path.join(pathDB, f"dataStruct-{tipoProblema}.jsonl")
-    componentesPath = os.path.join(pathDB, f'componentes-{tipoProblema}.jsonl')
+    componentesPath = os.path.join(pathDB, f'componentes-{tipoProblema}-{pipeline}.jsonl')
     inspiracionPath = os.path.join(pathDB, f'inspiraciones-{tipoProblema}.jsonl')
-    feedbackPath = os.path.join(pathDB,f'feedback-{tipoProblema}.jsonl')
-    resultPath = os.path.join(pathDB,f'resultados-{tipoProblema}.jsonl')
+    feedbackPath = os.path.join(pathDB,f'feedback-{tipoProblema}-{pipeline}.jsonl')
+    resultPath = os.path.join(pathDB,f'resultados-{tipoProblema}-{pipeline}.jsonl')
     componentesPathNP = os.path.join(pathDB, f'componentes-NP-{tipoProblema}-NP.jsonl')
     feedbackPathNP = os.path.join(pathDB,f'feedback-NP-{tipoProblema}-NP.jsonl')
     resultPathNP = os.path.join(pathDB,f'resultados-NP-{tipoProblema}-NP.jsonl')
@@ -66,9 +70,10 @@ def main():
    
 
     if args.plot:
-        problemaDB = pd.read_json(problemasPath,lines=True)
+        with open(problemasPath, 'r') as f:
+            problemaDB = pd.read_json(StringIO(f.read()), lines=True)
         if os.path.exists(componentesPath) and os.path.exists(resultPath) and os.path.exists(feedbackPath):
-            resultKDB = cargarResultados(os.path.join(pathDB,f'resultados-SR-{tipoProblema}.jsonl'))
+            resultDB = cargarResultados(resultPath)
             #resultControlDB = cargarResultados(os.path.join(pathDB,'resultados-SR-K-SD.jsonl'))
             #resultUDDB = cargarResultados(os.path.join(pathDB,'resultados-SR-K-PR.jsonl'))
             #resultGCDB = cargarResultados(os.path.join(pathDB,'resultados-SR-GC.jsonl'))
@@ -76,7 +81,7 @@ def main():
             #resultKDBH = cargarResultados(os.path.join(pathDB,'resultados-SR-K-H.jsonl'))
             #resultGCDBHUD = cargarResultados(os.path.join(pathDB,'resultados-SR-GC-HUD.jsonl'))
             output = os.path.join(pathDB,'tablasLatex.tex')
-            dfProcesadoCD, fallosCD, resultadosAux, correctitud = Analisis.procesarResultados(resultKDB, instancias)
+            dfProcesadoCD, fallosCD, resultadosAux, correctitud = Analisis.procesarResultados(resultDB, instancias)
             #procesarResultadosPorIteracion(resultKDB,dfProcesadoCD,output,"CE-K", instancias, iteraciones)
             Analisis.generarFigurasYTablasLatex(dfProcesadoCD, fallosCD, resultadosAux,  correctitud,  output,f"CE-{tipoProblema}")
             pd.set_option('display.float_format', lambda x: '%.0000f' % x) #Poco elegante pero funciona
@@ -88,10 +93,13 @@ def main():
         return 0
 
     if args.quicktest:
-        problemaDB = pd.read_json(problemasPath,lines=True)
+        with open(problemasPath, 'r') as f:
+            problemaDB = pd.read_json(StringIO(f.read()), lines=True)
         if os.path.exists(componentesPath) and os.path.exists(resultPath):
-            componenteDB = pd.read_json(componentesPath,lines=True)
-            resultDB = pd.read_json(resultPath,lines=True)
+            with open(componentesPath, 'r') as f:
+                   componenteDB = pd.read_json(StringIO(f.read()), lines=True)
+            with open(resultPath, 'r') as f:
+                   resultDB = pd.read_json(StringIO(f.read()), lines=True)
         else:
             componenteDB = pd.DataFrame(columns=['ID_Problema', 'Representacion', 'Evaluacion', 'Vecindad', 'Perturbacion','Version'])
             resultDB = pd.DataFrame(columns=['ID_Problema', 'Representacion', 'Evaluacion', 'Vecindad', 'Perturbacion', 'Resultados','Solucion','Valor Optimo', 'Metaheuristica', 'Tiempo'])
@@ -113,8 +121,10 @@ def main():
             #probar los dataStruct para saber si funcionan bien por medio de hacerlos cargar cada experimento?. 
         if args.opt:
                 componenteDB, feedbackDB, resultDB, InspiracionDB = cargarDBs(componentesPath,resultPath,feedbackPath, inspiracionPath)
-                problemaDB = pd.read_json(problemasPath,lines=True)
-                dataStructDB = pd.read_json(dataStructPath, lines=True)
+                with open(problemasPath, 'r') as f:
+                    problemaDB = pd.read_json(StringIO(f.read()), lines=True)
+                with open(dataStructPath, 'r') as f:
+                    dataStructDB = pd.read_json(StringIO(f.read()), lines=True)
                 filas_serie = problemaDB[problemaDB['Instancia'].str.startswith(problema_ID, na=False)] ## poco eficiente, pero como solo se hace unas pocas veces no importa. .iloc[0] es para que nos entregue la fila como serie
                 
                 if filas_serie.empty: 
@@ -134,7 +144,7 @@ def main():
                         print(f"Error al inicializar datos del problema {problema_ID}, revise como fue preparado antes de continuar")
                         continue;
                     print(problemData)
-                    componenteDB, feedbackDB, resultDB, InspiracionDB = Optimizacion.optimizarProblemaPreparadoDB(problema,schemaEstandar,problemData, componenteDB,resultDB,feedbackDB,InspiracionDB, iteraciones)
+                    componenteDB, feedbackDB, resultDB, InspiracionDB = Optimizacion.optimizarProblemaPreparadoDB(problema,schemaEstandar,problemData, componenteDB,resultDB,feedbackDB,InspiracionDB, iteraciones, semilla)
                     #crear funcion para probar componentes generados para el problema.
                     componenteDB.to_json(componentesPath,orient='records',lines=True)
                     feedbackDB.to_json(feedbackPath,orient='records',lines=True)
@@ -164,7 +174,8 @@ def main():
                 Preparacion.prepararBatch(instancias,llms, problemasPath, tipo="knapsack")
         if args.opt:
             print("Datos inicializados. Iniciando optimización")
-            problemaDB = pd.read_json(problemasPath,lines=True)
+            with open(problemasPath, 'r') as f:
+                problemaDB = pd.read_json(StringIO(f.read()), lines=True)
             componenteDB, feedbackDB, resultDB = cargarDBs(componentesPath,resultPath,feedbackPath)
             problemasFiltrados = problemaDB.iloc[filaMultiplo::filaMultiplo]
             for problema in problemasFiltrados.itertuples(index=False):    
@@ -188,13 +199,9 @@ def main():
             return 0
        
 
-    #componenteDB = pd.read_json(componentesPath,lines=True)
-    problemaDB = pd.read_json(problemasPath,lines=True)
-    #feedbackDB = pd.read_json(feedbackPath,lines=True)
-    #resultDB = pd.read_json(resultPath,lines=True)
-    #componenteDB.to_json(componentesPath,lines=True)
-    #feedbackDB.to_json(feedbackPath,lines=True)
-    #resultDB.to_json(resultPath,lines=True)
+    with open(problemasPath, 'r') as f:
+        problemaDB = pd.read_json(StringIO(f.read()), lines=True)
+
     return 0
 
 def prepararIndividual(instancias,llms,problemasPath, dataStructPath,instancia, schema, dataclassProblema):
@@ -203,13 +210,21 @@ def prepararIndividual(instancias,llms,problemasPath, dataStructPath,instancia, 
     return respuesta,feedback, convertidor
 
 def cargarDBs(componentesPath,resultPath,feedbackPath, inspiracionPath):
-    if os.path.exists(componentesPath): componenteDB = pd.read_json(componentesPath,lines=True)
+    if os.path.exists(componentesPath): 
+        with open(componentesPath, 'r') as f:
+           componenteDB = pd.read_json(StringIO(f.read()), lines=True)
     else: componenteDB = pd.DataFrame(columns=['ID_Problema', 'Representacion', 'Evaluacion', 'Vecindad', 'Perturbacion','SolucionPrueba','Version'])
-    if os.path.exists(feedbackPath): feedbackDB = pd.read_json(feedbackPath,lines=True)
+    if os.path.exists(feedbackPath): 
+        with open(feedbackPath, 'r') as f:
+            feedbackDB = pd.read_json(StringIO(f.read()), lines=True)
     else: feedbackDB = pd.DataFrame(columns=['ID_Problema', 'Representacion', 'Componente','Version', 'Feedback'])
-    if os.path.exists(resultPath): resultDB = pd.read_json(resultPath,lines=True)
+    if os.path.exists(resultPath): 
+        with open(resultPath, 'r') as f:
+            resultDB = pd.read_json(StringIO(f.read()), lines=True)
     else:resultDB = pd.DataFrame(columns=['ID_Problema', 'Representacion', 'Evaluacion', 'Vecindad', 'Perturbacion', 'Resultados','Solucion','Valor Optimo', 'Metaheuristica', 'Tiempo'])
-    if os.path.exists(inspiracionPath): inspiracionDB = pd.read_json(componentesPath,lines=True)
+    if os.path.exists(inspiracionPath): 
+        with open(inspiracionPath, 'r') as f:
+            inspiracionDB = pd.read_json(StringIO(f.read()), lines=True)
     else: inspiracionDB = pd.DataFrame(columns=['ID_Problema', 'Representacion', 'Evaluacion', 'Vecindad', 'Perturbacion','SolucionPrueba','Version'])
     return componenteDB,feedbackDB,resultDB, inspiracionDB
 

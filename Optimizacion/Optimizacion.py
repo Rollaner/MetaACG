@@ -76,14 +76,14 @@ def generacionNuevosComponentes(schema,objetivo, restricciones, llms, sampleSol,
 #actualmente solo esta evaluando 1 componente a la vez, tiene que evaluar sets de componentes. Representacion, Vecindad y Evaluacion
 
 
-def optimizarProblemaPreparadoDB(problema,schema,problemData, componenteDB:pd.DataFrame,resultDB: pd.DataFrame,feedbackDB: pd.DataFrame,inspiracionDB:pd.DataFrame, iteraciones):
+def optimizarProblemaPreparadoDB(problema,schema,problemData, componenteDB:pd.DataFrame,resultDB: pd.DataFrame,feedbackDB: pd.DataFrame,inspiracionDB:pd.DataFrame, iteraciones: int, semilla: int):
         ### generacion inicial
         llms = generador()
         llms.cargarLLMs()
         problemaID, jsonProblema, knownSol, knownObj = extraerDatosProblema(problema)
         print(problemaID)
         objetivo, restricciones = jsonProblema['OBJECTIVE'], jsonProblema['CONSTRAINTS']
-        inspiracionEval,inspiracionPerturb,inspiracionNB = cargarInspiraciones(inspiracionDB)
+        inspiracionEval,inspiracionPerturb,inspiracionNB = cargarInspiraciones(inspiracionDB, semilla)
         Eval, Nb, Perturb, representacion = generacionComponentesInicial(schema, objetivo, restricciones,llms, knownSol, inspiracionEval,inspiracionPerturb,inspiracionNB)
         componenteDB = guardarComponentes(problemaID,componenteDB,representacion, Eval, Nb, Perturb, knownSol, iteraciones)
         respuestas = [] #Temporal, para guardar todas las respuestas de generacion de componentes para tener la metadata.
@@ -372,13 +372,16 @@ def guardarDatos(datos, header, path):
     except Exception as e:
         print(f"Ocurrio un error al momento de escribir en el archivo: {e}", file=sys.stderr)
 
-def cargarInspiraciones(inspirationDB: pd.DataFrame):
+def cargarInspiraciones(inspirationDB: pd.DataFrame, seed = 42):
     #igual que componentes. Pero aqui se extrae del DF. Extraermos columnas 'Evaluacion' 'Vecindad' y 'Perturbacion'. Luego seleccionamos aleatoriamente usando la semilla definida al principio. No es necesario ejecutar el codigo. Solo se carga el texto y se le pasa eso. Si no se encuentra nada. Se returna NA
     Eval = "NA" 
-    perturb = "NA" 
-    Vecindad = "NA"
-
-    return Eval, perturb, Vecindad
+    Perturb = "NA" 
+    Nb = "NA"
+    if not inspirationDB.empty:
+        Eval = inspirationDB["Evaluacion"].sample(random_state=seed).iloc[0]
+        Perturb = inspirationDB["Perturbacion"].sample(random_state=seed).iloc[0]
+        Nb = inspirationDB["Vecindad"].sample(random_state=seed).iloc[0]
+    return Eval, Perturb, Nb
 
 def generarDiagnostico(context_message):
         tipo, error, tb  = sys.exc_info()
