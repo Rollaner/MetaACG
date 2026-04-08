@@ -71,12 +71,45 @@ def generacionNuevosComponentes(schema,objetivo, restricciones, llms, sampleSol,
     #print(Eval['REPRESENTATION'],Eval['EVAL_CODE'], Nb['NB_CODE'], Perturb['PERTURB_CODE'])
     return Eval, Nb, Perturb,Eval['REPRESENTATION']
 
+
+def generacionComponentesInicialSP(problema, llms, sampleSol,inspiracionEval,inspiracionPerturb,inspiracionNB):
+    promptEval = generateEvalPromptSP(problema, sampleSol,inspiracionEval)
+    promptNb = generateNBPromptSP(problema, sampleSol,inspiracionNB)
+    promptPerturb = generatePerturbPromptSP(problema, sampleSol,inspiracionPerturb)
+    RawEval = llms.generarComponente(promptEval)
+    RawNb = llms.generarComponente(promptNb)
+    RawPerturb = llms.generarComponente(promptPerturb)
+    textoBruto = RawEval.content[0]['text']
+    Eval = json.loads(textoBruto)
+    textoBruto = RawNb.content[0]['text']
+    Nb = json.loads(textoBruto)
+    textoBruto = RawPerturb.content[0]['text']
+    Perturb = json.loads(textoBruto)
+    return Eval, Nb, Perturb, Eval['REPRESENTATION']
+
+def generacionNuevosComponentesSP(problema, llms, sampleSol,resultadoSA, resultadoILS,resultadoTS,feedbackTexto,inspiracionEval,inspiracionPerturb,inspiracionNB) -> Tuple[Any,Any,Any]: ## Requiere TLC para que considere todos los resultados. Mezclemolos en uno. 
+    #Hay que hacer que revisa con cada tipo de resultado. No solo Simmulated Annealing
+    promptEval = updateEvalPromptSP(problema, resultadoTS, feedbackTexto, sampleSol,inspiracionEval)
+    promptNb = updateNBPromptSP(problema,resultadoTS, feedbackTexto, sampleSol,inspiracionNB)
+    promptPerturb = updatePerturbPromptSP(problema,resultadoTS, feedbackTexto, sampleSol,inspiracionPerturb)
+    RawEval = llms.generarComponente(promptEval)
+    RawNb = llms.generarComponente(promptNb)
+    RawPerturb = llms.generarComponente(promptPerturb)
+    textoBruto = RawEval.content[0]['text']
+    Eval = json.loads(textoBruto)
+    textoBruto = RawNb.content[0]['text']
+    Nb = json.loads(textoBruto)
+    textoBruto = RawPerturb.content[0]['text']
+    Perturb = json.loads(textoBruto)
+    print(Perturb['PERTURB_CODE'])
+    return Eval, Nb, Perturb,Eval['REPRESENTATION']
+
 #Utiliza las DB para guardar las respuestas con versionado. Eso significa que hay que acceder a los archivos y escribir sobre ellos. 
 #Podemos pasar el problema definido en la fase 1 directamente, en vez de sacar uno de la DB. Eso nos deja con dos variantes: seed, y problema predefinido. En ambos casos resultDB, feedbackDB y componenteDB son necesarios
 #actualmente solo esta evaluando 1 componente a la vez, tiene que evaluar sets de componentes. Representacion, Vecindad y Evaluacion
 
 
-def optimizarProblemaPreparadoDB(problema,schema,problemData, componenteDB:pd.DataFrame,resultDB: pd.DataFrame,feedbackDB: pd.DataFrame,inspiracionDB:pd.DataFrame, iteraciones: int, semilla: int):
+def optimizarProblemaPreparadoConInspiraciones(problema,schema,problemData, componenteDB:pd.DataFrame,resultDB: pd.DataFrame,feedbackDB: pd.DataFrame,inspiracionDB:pd.DataFrame, iteraciones: int, semilla: int):
         ### generacion inicial
         llms = generador()
         llms.cargarLLMs()
@@ -86,7 +119,7 @@ def optimizarProblemaPreparadoDB(problema,schema,problemData, componenteDB:pd.Da
         inspiracionEval,inspiracionPerturb,inspiracionNB = cargarInspiraciones(inspiracionDB, semilla)
         Eval, Nb, Perturb, representacion = generacionComponentesInicial(schema, objetivo, restricciones,llms, knownSol, inspiracionEval,inspiracionPerturb,inspiracionNB)
         componenteDB = guardarComponentes(problemaID,componenteDB,representacion, Eval, Nb, Perturb, knownSol, iteraciones)
-        respuestas = [] #Temporal, para guardar todas las respuestas de generacion de componentes para tener la metadata.
+        respuestas = [] 
         feedbacks = []
         i = 0
         ### proceso iterativo
@@ -120,7 +153,7 @@ def optimizarProblemaPreparadoDB(problema,schema,problemData, componenteDB:pd.Da
                 inspiracionDB = guardarComponentes(problemaID,inspiracionDB,representacion, Eval, Nb, Perturb, knownSol, i)
                 return componenteDB, feedbackDB, resultDB, inspiracionDB
             ### Retroalimentacion
-            feedbackPrompt = generateFeedbackPrompt(problemData, objetivo, restricciones,Eval, Nb, Perturb, knownSol,resultadoSA, resultadoILS,resultadoTS, "NA", "NA", i) #Necesita trabajar con el nuevo sistema de JSON
+            feedbackPrompt = generateFeedbackPrompt(schema, objetivo, restricciones,Eval, Nb, Perturb, knownSol,resultadoSA, resultadoILS,resultadoTS, "NA", "NA", i) #Necesita trabajar con el nuevo sistema de JSON
             feedback = llms.generarFeedback(feedbackPrompt) 
             feedbacks.append(feedback)
             feedbackTexto = feedback.content[0]['text']
@@ -145,6 +178,120 @@ def optimizarProblemaPreparadoDB(problema,schema,problemData, componenteDB:pd.Da
         resultDB = guardarResultado(problemaID,i,resultDB,representacion,Eval,Nb,Perturb,resultadoHC,knownSol, "NA", "HC", tiempoHC)       
         return componenteDB, feedbackDB, resultDB, inspiracionDB
 
+
+def optimizarProblemaPreparado(problema,schema,problemData, componenteDB:pd.DataFrame,resultDB: pd.DataFrame,feedbackDB: pd.DataFrame,inspiracionDB:pd.DataFrame, iteraciones: int, semilla: int):
+        ### generacion inicial
+        llms = generador()
+        llms.cargarLLMs()
+        problemaID, jsonProblema, knownSol, knownObj = extraerDatosProblema(problema)
+        print(problemaID)
+        objetivo, restricciones = jsonProblema['OBJECTIVE'], jsonProblema['CONSTRAINTS']
+        Eval, Nb, Perturb, representacion = generacionComponentesInicial(schema, objetivo, restricciones,llms, knownSol, "NA","NA","NA")
+        componenteDB = guardarComponentes(problemaID,componenteDB,representacion, Eval, Nb, Perturb, knownSol, iteraciones)
+        respuestas = [] 
+        feedbacks = []
+        i = 0
+        ### proceso iterativo
+        while i < iteraciones:
+            resultadoSA, tiempoSA = cronometrarFuncion(evaluarComponentes,Heuristicas.SimulatedAnnealing.SA,Eval, Nb, Perturb,problemData, knownSol,[1000,10,0.9])
+            resultadoILS, tiempoILS = cronometrarFuncion(evaluarComponentes,Heuristicas.IteratedLocalSearch.ILS, Eval, Nb, Perturb,problemData, knownSol,[200,0.1])
+            resultadoTS, tiempoTS = cronometrarFuncion(evaluarComponentes,Heuristicas.TabooSearch.TS, Eval, Nb, Perturb,problemData, knownSol,[200,10,7])
+            resultadoHC, tiempoHC = cronometrarFuncion(evaluarComponentes,Heuristicas.HillClimbing.HC, Eval, Nb, Perturb,problemData, knownSol,[200]) 
+            print(resultadoSA)
+            print(resultadoILS)
+            print(resultadoTS)
+            print(resultadoHC)
+            resultDB = guardarResultado(problemaID,i,resultDB,representacion, Eval,Nb,Perturb,resultadoSA,knownSol, "NA", "SA", tiempoSA)
+            resultDB = guardarResultado(problemaID,i,resultDB,representacion,Eval,Nb,Perturb,resultadoILS,knownSol, "NA", "ILS", tiempoILS)
+            resultDB = guardarResultado(problemaID,i,resultDB,representacion,Eval,Nb,Perturb,resultadoTS,knownSol, "NA", "TS", tiempoTS)
+            resultDB = guardarResultado(problemaID,i,resultDB,representacion,Eval,Nb,Perturb,resultadoHC,knownSol, "NA", "HC", tiempoHC)
+             ### Corte temprano
+            if componentesCorrectos(knownSol,knownObj,resultadoSA,resultadoTS,resultadoILS,resultadoHC):
+                inspiracionDB = guardarComponentes(problemaID,inspiracionDB,representacion, Eval, Nb, Perturb, knownSol, i)
+                return componenteDB, feedbackDB, resultDB, inspiracionDB
+            ### Retroalimentacion
+            feedbackPrompt = generateFeedbackPrompt(schema, objetivo, restricciones,Eval, Nb, Perturb, knownSol,resultadoSA, resultadoILS,resultadoTS, "NA", "NA", i) #Necesita trabajar con el nuevo sistema de JSON
+            feedback = llms.generarFeedback(feedbackPrompt) 
+            feedbacks.append(feedback)
+            feedbackTexto = feedback.content[0]['text']
+            print(f"feedback:{'-'*60}\n")
+            print(feedbackTexto)
+            feedbackDB = guardarFeedback(problemaID,feedbackDB,representacion,Eval, Nb, Perturb, i,feedbackTexto)
+            respuesta = generacionNuevosComponentes(schema, objetivo, restricciones,llms,knownSol,resultadoSA,resultadoILS, resultadoTS,feedbackTexto,"NA","NA","NA")
+            respuestas.append(respuesta)
+            Eval, Nb, Perturb, representacion = respuesta
+            componenteDB = guardarComponentes(problemaID,componenteDB,representacion, Eval, Nb, Perturb, knownSol, i)
+            i = i + 1
+        resultadoSA, tiempoSA = cronometrarFuncion(evaluarComponentes,Heuristicas.SimulatedAnnealing.SA,Eval, Nb, Perturb,problemData,knownSol,[1000,10,0.9])
+        resultadoILS, tiempoILS = cronometrarFuncion(evaluarComponentes,Heuristicas.IteratedLocalSearch.ILS, Eval, Nb, Perturb,problemData, knownSol,[200,0.1])
+        resultadoTS, tiempoTS = cronometrarFuncion(evaluarComponentes,Heuristicas.TabooSearch.TS, Eval, Nb, Perturb,problemData, knownSol,[200,10,7])
+        resultadoHC, tiempoHC = cronometrarFuncion(evaluarComponentes,Heuristicas.HillClimbing.HC, Eval, Nb, Perturb,problemData, knownSol,[200]) 
+        print(resultadoSA)
+        print(resultadoILS)
+        print(resultadoTS)
+        resultDB = guardarResultado(problemaID,i,resultDB,representacion, Eval,Nb,Perturb,resultadoSA,knownSol, "NA", "SA", tiempoSA)
+        resultDB = guardarResultado(problemaID,i,resultDB,representacion,Eval,Nb,Perturb,resultadoILS,knownSol, "NA", "ILS", tiempoILS)
+        resultDB = guardarResultado(problemaID,i,resultDB,representacion,Eval,Nb,Perturb,resultadoTS,knownSol, "NA", "TS", tiempoTS)
+        resultDB = guardarResultado(problemaID,i,resultDB,representacion,Eval,Nb,Perturb,resultadoHC,knownSol, "NA", "HC", tiempoHC)       
+        return componenteDB, feedbackDB, resultDB, inspiracionDB
+
+
+## No usa sistema de preparacion. Requiere modificacion para trabajar sin preparacion. Requiere que se cargen los datos de la instancia directamente para trabajar
+def optimizarProblemaSinPreparar(problemaID, problema,problemData,knownSol, knownObj, componenteDB:pd.DataFrame,resultDB: pd.DataFrame,feedbackDB: pd.DataFrame, iteraciones):
+        llms = generador()
+        llms.cargarLLMs()
+        
+        print(problemaID)
+        Eval, Nb, Perturb, representacion = generacionComponentesInicialSP(problema,llms, knownSol, "NA","NA","NA") #Modificar aqui
+        componenteDB = guardarComponentes(problemaID,componenteDB,representacion, Eval, Nb, Perturb, knownSol, iteraciones)
+        respuestas = [] 
+        feedbacks = []
+        i = 0
+        ### proceso iterativo
+        while i < iteraciones:
+            resultadoSA, tiempoSA = cronometrarFuncion(evaluarComponentes,Heuristicas.SimulatedAnnealing.SA,Eval, Nb, Perturb,problemData, knownSol,[1000,10,0.9])
+            resultadoILS, tiempoILS = cronometrarFuncion(evaluarComponentes,Heuristicas.IteratedLocalSearch.ILS, Eval, Nb, Perturb,problemData, knownSol,[200,0.1])
+            resultadoTS, tiempoTS = cronometrarFuncion(evaluarComponentes,Heuristicas.TabooSearch.TS, Eval, Nb, Perturb,problemData, knownSol,[200,10,7])
+            resultadoHC, tiempoHC = cronometrarFuncion(evaluarComponentes,Heuristicas.HillClimbing.HC, Eval, Nb, Perturb,problemData, knownSol,[200]) 
+            print(resultadoSA)
+            print(resultadoILS)
+            print(resultadoTS)
+            print(resultadoHC)
+            resultDB = guardarResultado(problemaID,i,resultDB,representacion, Eval,Nb,Perturb,resultadoSA,knownSol, "NA", "SA", tiempoSA)
+            resultDB = guardarResultado(problemaID,i,resultDB,representacion,Eval,Nb,Perturb,resultadoILS,knownSol, "NA", "ILS", tiempoILS)
+            resultDB = guardarResultado(problemaID,i,resultDB,representacion,Eval,Nb,Perturb,resultadoTS,knownSol, "NA", "TS", tiempoTS)
+            resultDB = guardarResultado(problemaID,i,resultDB,representacion,Eval,Nb,Perturb,resultadoHC,knownSol, "NA", "HC", tiempoHC)
+            ##Corte Temprano
+            if componentesCorrectos(knownSol,knownObj,resultadoSA,resultadoTS,resultadoILS,resultadoHC):
+                inspiracionDB = guardarComponentes(problemaID,inspiracionDB,representacion, Eval, Nb, Perturb, knownSol, i)
+                return componenteDB, feedbackDB, resultDB, inspiracionDB
+            ### Retroalimentacion
+            feedbackPrompt = generateFeedbackPromptSP(problema,Eval, Nb, Perturb, knownSol,resultadoSA, resultadoILS,resultadoTS, "NA", "NA", i) 
+            feedback = llms.generarFeedback(feedbackPrompt) 
+            feedbacks.append(feedback)
+            feedbackTexto = feedback.content[0]['text']
+            print(f"feedback:{'-'*60}\n")
+            print(feedbackTexto)
+            feedbackDB = guardarFeedback(problemaID,feedbackDB,representacion,Eval, Nb, Perturb, i,feedbackTexto)
+            respuesta = generacionNuevosComponentesSP(problema,llms,knownSol,resultadoSA,resultadoILS, resultadoTS,feedbackTexto,"NA","NA","NA") #Modificar Aqui
+            respuestas.append(respuesta)
+            Eval, Nb, Perturb, representacion = respuesta
+            componenteDB = guardarComponentes(problemaID,componenteDB,representacion, Eval, Nb, Perturb, knownSol, i)
+            i = i + 1
+        resultadoSA, tiempoSA = cronometrarFuncion(evaluarComponentes,Heuristicas.SimulatedAnnealing.SA,Eval, Nb, Perturb,problemData,knownSol,[1000,10,0.9])
+        resultadoILS, tiempoILS = cronometrarFuncion(evaluarComponentes,Heuristicas.IteratedLocalSearch.ILS, Eval, Nb, Perturb,problemData, knownSol,[200,0.1])
+        resultadoTS, tiempoTS = cronometrarFuncion(evaluarComponentes,Heuristicas.TabooSearch.TS, Eval, Nb, Perturb,problemData, knownSol,[200,10,7])
+        resultadoHC, tiempoHC = cronometrarFuncion(evaluarComponentes,Heuristicas.HillClimbing.HC, Eval, Nb, Perturb,problemData, knownSol,[200]) 
+        print(resultadoSA)
+        print(resultadoILS)
+        print(resultadoTS)
+        resultDB = guardarResultado(problemaID,i,resultDB,representacion, Eval,Nb,Perturb,resultadoSA,knownSol, "NA", "SA", tiempoSA)
+        resultDB = guardarResultado(problemaID,i,resultDB,representacion,Eval,Nb,Perturb,resultadoILS,knownSol, "NA", "ILS", tiempoILS)
+        resultDB = guardarResultado(problemaID,i,resultDB,representacion,Eval,Nb,Perturb,resultadoTS,knownSol, "NA", "TS", tiempoTS)
+        resultDB = guardarResultado(problemaID,i,resultDB,representacion,Eval,Nb,Perturb,resultadoHC,knownSol, "NA", "HC", tiempoHC)       
+        return componenteDB, feedbackDB, resultDB, inspiracionDB
+
+
 ## Detecta si todo obtuvo resultados validos, y si alguna de las metaheuristicas llego al optimo. Si una lo hizo, sabemos que se puede, y que los componententes estan correctos.
 def componentesCorrectos(knownSol, knownObj, *args):
     optimoPresente:bool = False
@@ -162,55 +309,7 @@ def componentesCorrectos(knownSol, knownObj, *args):
     return (optimoPresente and errorNoDetectado)
 
 
-## No usa sistema de preparacion, Deprecado
-def optimizarProblemaSinPreparar(problemaID, problema, problemData, SampleSol,componenteDB:pd.DataFrame,resultDB: pd.DataFrame,feedbackDB: pd.DataFrame, iteraciones):
-        ### generacion inicial
-        llms = generador()
-        llms.cargarLLMs()
-        print(problemaID, "NA", "NA")
-        Eval, Nb, Perturb, representacion = generacionComponentesInicial(problemaID, problema, SampleSol)
-        componenteDB = guardarComponentes(problemaID,componenteDB,representacion, Eval, Nb, Perturb, SampleSol, i)
-        respuestas = [] #Temporal, para guardar todas las respuestas de generacion de componentes para tener la metadata.
-        feedbacks = []
-        i = 0
 
-        ### proceso iterativo
-        while i < iteraciones:
-            resultadoSA, tiempoSA = cronometrarFuncion(evaluarComponentes,Heuristicas.SimulatedAnnealing.SA,Eval, Nb, Perturb,problemData, SampleSol,[1000,10,0.9])
-            resultadoILS, tiempoILS = cronometrarFuncion(evaluarComponentes,Heuristicas.IteratedLocalSearch.ILS, Eval, Nb, Perturb,problemData, SampleSol,[44,0.1])
-            resultadoTS, tiempoTS = cronometrarFuncion(evaluarComponentes,Heuristicas.TabooSearch.TS, Eval, Nb, Perturb,problemData, SampleSol,[44,10,7])
-            print(resultadoSA)
-            print(resultadoILS)
-            print(resultadoTS)
-            resultDB = guardarResultado(problemaID,resultDB,representacion, Eval,Nb,Perturb,resultadoSA,SampleSol, "NA", "SA", tiempoSA)
-            resultDB = guardarResultado(problemaID,resultDB,representacion,Eval,Nb,Perturb,resultadoILS,SampleSol, "NA", "ILS", tiempoILS)
-            resultDB = guardarResultado(problemaID,resultDB,representacion,Eval,Nb,Perturb,resultadoTS,SampleSol, "NA", "TS", tiempoTS)
-            feedbackPrompt = generateFeedbackPrompt(problema,Eval, Nb, Perturb, SampleSol,resultadoSA, resultadoILS,resultadoTS, "NA", "NA") #Necesita trabajar con el nuevo sistema de JSON
-            feedback = llms.generarFeedback(feedbackPrompt) 
-            feedbacks.append(feedback)
-            feedbackTexto = feedback.content[0]['text']
-            print(feedbackTexto)
-            feedbackDB = guardarFeedback(problemaID,feedbackDB,representacion,Eval, Nb, Perturb, i,feedbackTexto)
-            
-            ### Retroalimentacion
-            respuesta = generacionNuevosComponentes(problemaID,problema,llms,SampleSol,resultadoSA,resultadoILS, resultadoTS,feedbackTexto)
-            respuestas.append(respuesta)
-            Eval, Nb, Perturb, representacion = respuesta
-            componenteDB = guardarComponentes(problemaID,componenteDB,representacion, Eval, Nb, Perturb, SampleSol, i)
-            i = i + 1
-            if i % 3 == 0:
-                llms = reiniciarLLMS()
-                print("Maquinas re-instanciadas")
-        resultadoSA, tiempoSA = cronometrarFuncion(evaluarComponentes,Heuristicas.SimulatedAnnealing.SA,Eval, Nb, Perturb,problemData, SampleSol,[1000,10,0.9])
-        resultadoILS, tiempoILS = cronometrarFuncion(evaluarComponentes,Heuristicas.IteratedLocalSearch.ILS, Eval, Nb, Perturb,problemData, SampleSol,[44,0.1])
-        resultadoTS, tiempoTS = cronometrarFuncion(evaluarComponentes,Heuristicas.TabooSearch.TS, Eval, Nb, Perturb,problemData, SampleSol,[44,10,7])
-        print(resultadoSA)
-        print(resultadoILS)
-        print(resultadoTS)
-        resultDB = guardarResultado(problemaID,resultDB,representacion, Eval,Nb,Perturb,resultadoSA,SampleSol, "NA", "SA", tiempoSA)
-        resultDB = guardarResultado(problemaID,resultDB,representacion,Eval,Nb,Perturb,resultadoILS,SampleSol, "NA", "ILS", tiempoILS)
-        resultDB = guardarResultado(problemaID,resultDB,representacion,Eval,Nb,Perturb,resultadoTS,SampleSol, "NA", "TS", tiempoTS)     
-        return componenteDB, feedbackDB, resultDB
 
 def cargarDatosProblema(problemData, standardDataclass, convertidorText):
     convertidor = cargarComponente(convertidorText)

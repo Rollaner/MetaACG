@@ -149,7 +149,6 @@ def _modos_fallo_por_pipeline(dfProcesado, resultadosAux, pipeline, output_dir):
                 color=paletaDeBarras[idx % len(paletaDeBarras)],
                 label=mh)
 
-    # Vertical grid lines (X axis gridlines on a barh chart)
     ax.xaxis.grid(True, linestyle='--', linewidth=0.6, alpha=0.7)
     ax.set_axisbelow(True)
 
@@ -191,6 +190,7 @@ def _stacked_bar_por_metaheuristica(dfProcesado, resultadosAux, pipeline, output
     ax.set_yticklabels(df.index)
     ax.set_xlim(0, 100)
     ax.xaxis.set_major_formatter(plt.FuncFormatter(lambda v, _: f"{v:.0f}%"))
+    ax.xaxis.grid(True, linestyle='--', linewidth=0.6, alpha=0.7)
     ax.set_xlabel("Proporción")
     ax.set_title(f"Comportamiento por metaheurística — {pipeline}")
     ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.12),
@@ -218,6 +218,7 @@ def _stacked_area_por_iteracion(dfProcesado, resultadosAux, pipeline, output_dir
     ax.set_ylim(0, 100)
     ax.set_xlim(opts.index[0], opts.index[-1])
     ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda v, _: f"{v:.0f}%"))
+    ax.xaxis.set_major_locator(MaxNLocator(integer=True))
     ax.set_xlabel("Iteración")
     ax.set_ylabel("Proporción")
     ax.set_title(f"Resultados por iteración — {pipeline}")
@@ -244,7 +245,9 @@ def _detalle_area_por_iteracion(dfProcesado: pd.DataFrame,resultadosAux: pd.Data
         ax.set_ylabel(label)
         ax.set_ylim(bottom=0)
         ax.set_xlim(opts.index[0], opts.index[-1])
-    ax_fallo.set_xlabel("Iteración")
+        ax_fallo.set_xlabel("Iteración")
+        ax.xaxis.set_major_locator(MaxNLocator(integer=True))
+        ax.xaxis.grid(True, linestyle='--', linewidth=0.6, alpha=0.7)
     fig.suptitle(f"Detalle resultados por iteración — {pipeline}")
     fig.tight_layout()
     plt.savefig(os.path.join(output_dir, f"{pipeline}_area_detalle.pdf"),bbox_inches="tight")

@@ -144,7 +144,7 @@ def main():
                         print(f"Error al inicializar datos del problema {problema_ID}, revise como fue preparado antes de continuar")
                         continue;
                     print(problemData)
-                    componenteDB, feedbackDB, resultDB, InspiracionDB = Optimizacion.optimizarProblemaPreparadoDB(problema,schemaEstandar,problemData, componenteDB,resultDB,feedbackDB,InspiracionDB, iteraciones, semilla)
+                    componenteDB, feedbackDB, resultDB, InspiracionDB = Optimizacion.optimizarProblemaPreparadoConInspiraciones(problema,schemaEstandar,problemData, componenteDB,resultDB,feedbackDB,InspiracionDB, iteraciones, semilla)
                     #crear funcion para probar componentes generados para el problema.
                     componenteDB.to_json(componentesPath,orient='records',lines=True)
                     feedbackDB.to_json(feedbackPath,orient='records',lines=True)
