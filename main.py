@@ -23,14 +23,12 @@ from io import StringIO
 
 
 def main():
+    #Inicializar entorno
     semilla = 1234
-    iteraciones = 3 #Genracion se atasca muy seguido. Se prueba sin reiniciar, luego probabos con reinicio. 
+    iteraciones = 3 
     filaMultiplo = 3
     instancias = DataLoader()
-    pipeline = "full"
-    #Inicializar datos
     load_dotenv()
-   
     #Modificacion para pruebas, prepara modo batch por defecto. Mas rapido en caso de que el codigo falle
     if len(sys.argv) == 1:
         sys.argv.extend(['TS', 'traveling_salesman_hard_dataset_in_house_9_24', '-p'])
@@ -41,9 +39,10 @@ def main():
     parser.add_argument('tipoProblema', type=str, choices=instancias.getClaves().keys(), help='Tipo de problema a procesar.')
     parser.add_argument('problema_ID', nargs='?',default=None,help="ID del problema a optimizar: Formato: Tipo_dataset_ID, IDs son equivalentes al nombre de carpeta que contiene los datos de la instancia, incompatible con '-b/--batch'")
     parser.add_argument('-b', '--batch', action= 'store_true', dest='batch',help='Realizar operaciones con todos los datos y problemas disponibles de forma automatica')
-    parser.add_argument('-p', '--prep',action='store_true', dest='prep', help='Realiza preparacion de problemas en batch, no optimiza')
-    parser.add_argument('-o', '--opt',action='store_true', dest='opt', help='Solo optimizar, pero espera preparacion previa- Usar despues the -p o --prep. sin solucion conocida')
-    parser.add_argument('-np', '--noprep',action='store_true', dest='skip_prep', help='Optimizar pero sin preparar antes, incompatible con --prep/-p y --opt/-o')
+    parser.add_argument('-p', '--prep',action='store_true', dest='prep', help='Realiza preparacion de problemas')
+    parser.add_argument('-o', '--opt',action='store_true', dest='opt', help='Optimizar. Espera preparacion previa - Usar despues the -p o --prep. sin solucion conocida')
+    parser.add_argument('-oi', '--opti',action='store_true', dest='opti', help='Optimizar con inspiraciones. Espera preparacion previa - Usar despues the -p o --prep.')
+    parser.add_argument('-np', '--noprep',action='store_true', dest='skip_prep', help='Optimizar sin preparar antes, incompatible con --prep/-p y --opt/-o')
     parser.add_argument('-plt', '--plot',action='store_true', dest='plot', help='Procesar resultados')
     parser.add_argument('-s', '--seed',action='store_true', dest='seed', help='Semilla para operaciones aleatorias a utilizar')
      ## puede que lo podamos reciclar para otra cosa, sino eliminar
@@ -52,10 +51,18 @@ def main():
     tipoProblema = args.tipoProblema
     if args.seed: semilla = args.seed
     os.makedirs(pathDB, exist_ok=True)
+
+    if args.opti:
+        pipeline = "full-i"
+    if args.opt:
+        pipeline = "full"
+    if args.skip_prep:
+        pipeline = "directa"
+            
     problemasPath = os.path.join(pathDB, f'problemas-{tipoProblema}.jsonl')
     dataStructPath = os.path.join(pathDB, f"dataStruct-{tipoProblema}.jsonl")
-    componentesPath = os.path.join(pathDB, f'componentes-{tipoProblema}-{pipeline}.jsonl')
     inspiracionPath = os.path.join(pathDB, f'inspiraciones-{tipoProblema}.jsonl')
+    componentesPath = os.path.join(pathDB, f'componentes-{tipoProblema}-{pipeline}.jsonl')
     feedbackPath = os.path.join(pathDB,f'feedback-{tipoProblema}-{pipeline}.jsonl')
     resultPath = os.path.join(pathDB,f'resultados-{tipoProblema}-{pipeline}.jsonl')
     componentesPathNP = os.path.join(pathDB, f'componentes-NP-{tipoProblema}-NP.jsonl')
@@ -119,7 +126,7 @@ def main():
             print("Datos inicializados. Iniciando preparación")
             prepararIndividual(instancias,llms,problemasPath,dataStructPath,problema_ID,schemaEstandar, dataclassProblema) #NGuarda Datos directamente. Se usa el archivo CSV para pasar datos a traves del sistema
             #probar los dataStruct para saber si funcionan bien por medio de hacerlos cargar cada experimento?. 
-        if args.opt:
+        if args.opti:
                 componenteDB, feedbackDB, resultDB, InspiracionDB = cargarDBs(componentesPath,resultPath,feedbackPath, inspiracionPath)
                 with open(problemasPath, 'r') as f:
                     problemaDB = pd.read_json(StringIO(f.read()), lines=True)
@@ -150,7 +157,38 @@ def main():
                     feedbackDB.to_json(feedbackPath,orient='records',lines=True)
                     resultDB.to_json(resultPath,orient='records',lines=True)
                     InspiracionDB.to_json(resultPath,orient='records',lines=True)
-                return 0         
+                return 0
+        if args.opt:
+                componenteDB, feedbackDB, resultDB, InspiracionDB = cargarDBs(componentesPath,resultPath,feedbackPath, inspiracionPath)
+                with open(problemasPath, 'r') as f:
+                    problemaDB = pd.read_json(StringIO(f.read()), lines=True)
+                with open(dataStructPath, 'r') as f:
+                    dataStructDB = pd.read_json(StringIO(f.read()), lines=True)
+                filas_serie = problemaDB[problemaDB['Instancia'].str.startswith(problema_ID, na=False)] ## poco eficiente, pero como solo se hace unas pocas veces no importa. .iloc[0] es para que nos entregue la fila como serie
+                
+                if filas_serie.empty: 
+                    print("Id de problema %s no encontrado, preparelo primero o revise los datos de entrada", problema_ID)
+                    return 0
+                print("Datos inicializados. Iniciando optimizacion")
+                for problema in filas_serie.itertuples(index=False):
+                    problema_ID = problema.Instancia
+                    filas_struct = dataStructDB[dataStructDB['Instancia'] == problema_ID].iloc[0]
+                    schemaGenerado = problema.Respuesta
+                    convertidorText = filas_struct['FuncionDeCarga'] 
+                    try:
+                        problemData = Optimizacion.cargarDatosProblema(schemaGenerado,dataclassProblema,convertidorText)
+                    except Exception as e: #En caso de que use la instancia directamente, no hay forma de saber que va a intentar
+                         problemData = Optimizacion.cargarDatosProblema(schemaGenerado,dataclassProblemaInst,convertidorText)
+                    if(not problemData):
+                        print(f"Error al inicializar datos del problema {problema_ID}, revise como fue preparado antes de continuar")
+                        continue;
+                    print(problemData)
+                    componenteDB, feedbackDB, resultDB, InspiracionDB = Optimizacion.optimizarProblemaPreparado(problema,schemaEstandar,problemData, componenteDB,resultDB,feedbackDB,InspiracionDB, iteraciones, semilla)
+                    #crear funcion para probar componentes generados para el problema.
+                    componenteDB.to_json(componentesPath,orient='records',lines=True)
+                    feedbackDB.to_json(feedbackPath,orient='records',lines=True)
+                    resultDB.to_json(resultPath,orient='records',lines=True)
+                    InspiracionDB.to_json(resultPath,orient='records',lines=True)         
         if args.skip_prep and not args.opt and not args.prep:
             instancias = instancias.getInstancias(problema_ID)
             if len(instancias) == 0 : 
@@ -172,6 +210,17 @@ def main():
                 Preparacion.prepararBatch(instancias,llms, problemasPath, tipo="graph_coloring")
             elif tipoProblema == "K":
                 Preparacion.prepararBatch(instancias,llms, problemasPath, tipo="knapsack")
+        if args.opti:
+            print("Datos inicializados. Iniciando optimización")
+            with open(problemasPath, 'r') as f:
+                problemaDB = pd.read_json(StringIO(f.read()), lines=True)
+            componenteDB, feedbackDB, resultDB = cargarDBs(componentesPath,resultPath,feedbackPath)
+            problemasFiltrados = problemaDB.iloc[filaMultiplo::filaMultiplo]
+            for problema in problemasFiltrados.itertuples(index=False):    
+                componenteDB, feedbackDB, resultDB = Optimizacion.optimizarProblemaPreparadoConInspiraciones(problema, componenteDB,resultDB,feedbackDB, iteraciones)
+                componenteDB.to_json(componentesPath,orient='records',lines=True)
+                feedbackDB.to_json(feedbackPath,orient='records',lines=True)
+                resultDB.to_json(resultPath,orient='records',lines=True)
         if args.opt:
             print("Datos inicializados. Iniciando optimización")
             with open(problemasPath, 'r') as f:
