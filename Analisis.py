@@ -177,7 +177,7 @@ def agregarResultados(dfProcesado: pd.DataFrame, resultadosAux: pd.DataFrame) ->
     assert fallos + ejecuciones + optimos == len(resultadosAux), "Los totales no cuadran"
     return {'Fallos': fallos, 'Ejecuciones': ejecuciones, 'Optimos': optimos}
 
-def generarFigurasYTablasLatex(dfProcesado: pd.DataFrame, FallosTot: dict, resultadosAux: pd.DataFrame, correctitud: dict, output: str, pipeline: str):
+def generarFigurasYTablasLatexLocales(dfProcesado: pd.DataFrame, FallosTot: dict, resultadosAux: pd.DataFrame, correctitud: dict, output: str, pipeline: str):
     totalExperimentos = len(resultadosAux)
     tasaDeFallos      = FallosTot['Total Fallos'] / totalExperimentos
     metricasRendimiento = _calcularMetricasRendimiento(dfProcesado)
@@ -273,10 +273,10 @@ def _crearTablasLatex(dfProcesado, metricasRendimiento, desempeñoPorSolver, Fal
 
 
 ## requieren un estado global o que le pase todas las pipelines de una en main. Habra que pensar que es mejor
-def _plotsGlobales(registroPipelines: dict):
+def plotsGlobales(registroPipelines: dict):
     Plotter.graficos_globales(registroPipelines)
 
-def _actualizarDictPipelines(FallosTot: dict, registroPipelines, pipeline: str, dfProcesado: pd.DataFrame, resultadosAux: pd.DataFrame): 
+def actualizarDictPipelines(FallosTot: dict, registroPipelines, pipeline: str, dfProcesado: pd.DataFrame, resultadosAux: pd.DataFrame): 
     registroPipelines.append({
         "pipeline":     pipeline,
         "dfProcesado":  dfProcesado,

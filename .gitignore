@@ -14,3 +14,5 @@ Data/backup
 Data/*.jsonl
 Data/problemas-K.jsonl
 Data/dataStruct-SR-K.jsonl
+Data/dataStruct-SR-K.jsonl
+.gitignore

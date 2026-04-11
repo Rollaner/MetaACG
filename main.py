@@ -1,4 +1,6 @@
 import argparse
+import glob
+import re
 import sys
 import time
 from dotenv import load_dotenv
@@ -32,7 +34,7 @@ def main():
     #Modificacion para pruebas, prepara modo batch por defecto. Mas rapido en caso de que el codigo falle
     if len(sys.argv) == 1:
         sys.argv.extend(['TS', 'traveling_salesman_hard_dataset_in_house_9_24', '-p'])
-    pathDB= os.path.join(os.path.dirname(__file__), 'Data')
+    DATA_PATH= os.path.join(os.path.dirname(__file__), 'Data')
     #Fin modificacion para pruebas
     parser = argparse.ArgumentParser()
     # Este no tiene flag (-  o bien --). Es posicional. Para referencia futura: --help pone los posicionales primero
@@ -50,7 +52,7 @@ def main():
     args=parser.parse_args()
     tipoProblema = args.tipoProblema
     if args.seed: semilla = args.seed
-    os.makedirs(pathDB, exist_ok=True)
+    os.makedirs(DATA_PATH, exist_ok=True)
 
     if args.opti:
         pipeline = "full-i"
@@ -59,60 +61,60 @@ def main():
     if args.skip_prep:
         pipeline = "directa"
             
-    problemasPath = os.path.join(pathDB, f'problemas-{tipoProblema}.jsonl')
-    dataStructPath = os.path.join(pathDB, f"dataStruct-{tipoProblema}.jsonl")
-    inspiracionPath = os.path.join(pathDB, f'inspiraciones-{tipoProblema}.jsonl')
-    componentesPath = os.path.join(pathDB, f'componentes-{tipoProblema}-{pipeline}.jsonl')
-    feedbackPath = os.path.join(pathDB,f'feedback-{tipoProblema}-{pipeline}.jsonl')
-    resultPath = os.path.join(pathDB,f'resultados-{tipoProblema}-{pipeline}.jsonl')
-    componentesPathNP = os.path.join(pathDB, f'componentes-NP-{tipoProblema}-NP.jsonl')
-    feedbackPathNP = os.path.join(pathDB,f'feedback-NP-{tipoProblema}-NP.jsonl')
-    resultPathNP = os.path.join(pathDB,f'resultados-NP-{tipoProblema}-NP.jsonl')
+    problemasPath = os.path.join(DATA_PATH, f'problemas-{tipoProblema}.jsonl')
+    dataStructPath = os.path.join(DATA_PATH, f"dataStruct-{tipoProblema}.jsonl")
+    inspiracionPath = os.path.join(DATA_PATH, f'inspiraciones-{tipoProblema}.jsonl')
+    componentesPath = os.path.join(DATA_PATH, f'componentes-{tipoProblema}-{pipeline}.jsonl')
+    feedbackPath = os.path.join(DATA_PATH,f'feedback-{tipoProblema}-{pipeline}.jsonl')
+    resultsPath = os.path.join(DATA_PATH,f'resultados-{tipoProblema}-{pipeline}.jsonl')
+    componentesPathNP = os.path.join(DATA_PATH, f'componentes-NP-{tipoProblema}-NP.jsonl')
+    feedbackPathNP = os.path.join(DATA_PATH,f'feedback-NP-{tipoProblema}-NP.jsonl')
+    resultPathNP = os.path.join(DATA_PATH,f'resultados-NP-{tipoProblema}-NP.jsonl')
     
     instancias.cargarProblemas(tipoProblema)
     schemaEstandar, dataclassProblema, dataclassProblemaInst = instancias.getSchema(tipoProblema)
     llms = generador()
     llms.cargarLLMs()
     
-   
-
     if args.plot:
-        with open(problemasPath, 'r') as f:
-            problemaDB = pd.read_json(StringIO(f.read()), lines=True)
-        if os.path.exists(componentesPath) and os.path.exists(resultPath) and os.path.exists(feedbackPath):
-            resultDB = cargarResultados(resultPath)
-            #resultControlDB = cargarResultados(os.path.join(pathDB,'resultados-SR-K-SD.jsonl'))
-            #resultUDDB = cargarResultados(os.path.join(pathDB,'resultados-SR-K-PR.jsonl'))
-            #resultGCDB = cargarResultados(os.path.join(pathDB,'resultados-SR-GC.jsonl'))
-            #resultGCDBH = cargarResultados(os.path.join(pathDB,'resultados-SR-GC-H.jsonl'))
-            #resultKDBH = cargarResultados(os.path.join(pathDB,'resultados-SR-K-H.jsonl'))
-            #resultGCDBHUD = cargarResultados(os.path.join(pathDB,'resultados-SR-GC-HUD.jsonl'))
-            output = os.path.join(pathDB,'tablasLatex.tex')
-            dfProcesadoCD, fallosCD, resultadosAux, correctitud = Analisis.procesarResultados(resultDB, instancias)
-            #procesarResultadosPorIteracion(resultKDB,dfProcesadoCD,output,"CE-K", instancias, iteraciones)
-            Analisis.generarFigurasYTablasLatex(dfProcesadoCD, fallosCD, resultadosAux,  correctitud,  output,f"CE-{tipoProblema}")
-            pd.set_option('display.float_format', lambda x: '%.0000f' % x) #Poco elegante pero funciona
-            #compararResultados(metricasRendimientoCD,metricasRendimientoC,desempeñoPorSolverCD, desempeñoPorSolverC,output)
-            #Necesita ser cambiado. De momento la comparacion FP y Control esta hardcodeada
-            #compararResultados(metricasRendimientoKH,metricasRendimientoGCH,desempeñoPorSolverKH, desempeñoPorSolverGCH,output)
-        else:
+        pipelines = []
+        resultados = []
+        registroPipelines = []
+        archivos = glob.glob(os.path.join(DATA_PATH, f"resultados-{tipoProblema}-*.jsonl"))
+    
+        if not archivos:
             print("No hay resultados disponibles. Corra el algoritmo primero")
+            return 0
+        
+        for resultsPath in archivos:
+            match = re.search(rf"resultados-{re.escape(tipoProblema)}-(.+)\.jsonl$", os.path.basename(resultsPath))
+            if match:
+                pipelines.append(match.group(1))
+                resultados.append(cargarResultados(resultsPath))
+
+        for pipeline, resultDB in zip(pipelines, resultados):
+            tablaOutput = os.path.join(DATA_PATH,f'tablasLatex-{pipeline}.tex')
+            dfProcesado, fallos, resultadosAux, correctitud = Analisis.procesarResultados(resultDB, instancias)
+            Analisis.actualizarDictPipelines(FallosTot=fallos,registroPipelines=registroPipelines,pipeline=pipeline,dfProcesado=dfProcesado,resultadosAux=resultadosAux)
+            Analisis.generarFigurasYTablasLatexLocales(dfProcesado, fallos, resultadosAux,  correctitud,  tablaOutput,f"CE-{tipoProblema}")            
+            pd.set_option('display.float_format', lambda x: '%.0000f' % x) #Poco elegante pero funciona
+        Analisis.plotsGlobales(registroPipelines)
         return 0
 
     if args.quicktest:
         with open(problemasPath, 'r') as f:
             problemaDB = pd.read_json(StringIO(f.read()), lines=True)
-        if os.path.exists(componentesPath) and os.path.exists(resultPath):
+        if os.path.exists(componentesPath) and os.path.exists(resultsPath):
             with open(componentesPath, 'r') as f:
                    componenteDB = pd.read_json(StringIO(f.read()), lines=True)
-            with open(resultPath, 'r') as f:
+            with open(resultsPath, 'r') as f:
                    resultDB = pd.read_json(StringIO(f.read()), lines=True)
         else:
             componenteDB = pd.DataFrame(columns=['ID_Problema', 'Representacion', 'Evaluacion', 'Vecindad', 'Perturbacion','Version'])
             resultDB = pd.DataFrame(columns=['ID_Problema', 'Representacion', 'Evaluacion', 'Vecindad', 'Perturbacion', 'Resultados','Solucion','Valor Optimo', 'Metaheuristica', 'Tiempo'])
         for problema in problemaDB.itertuples(index=False):
             resultDB = comprobarComponentesUD(problema,componenteDB,resultDB)
-        resultDB.to_json(resultPath,orient='records',lines=True)
+        resultDB.to_json(resultsPath,orient='records',lines=True)
         return 0
 
     if(args.problema_ID and args.batch):
@@ -127,7 +129,7 @@ def main():
             prepararIndividual(instancias,llms,problemasPath,dataStructPath,problema_ID,schemaEstandar, dataclassProblema) #NGuarda Datos directamente. Se usa el archivo CSV para pasar datos a traves del sistema
             #probar los dataStruct para saber si funcionan bien por medio de hacerlos cargar cada experimento?. 
         if args.opti:
-                componenteDB, feedbackDB, resultDB, InspiracionDB = cargarDBs(componentesPath,resultPath,feedbackPath, inspiracionPath)
+                componenteDB, feedbackDB, resultDB, InspiracionDB = cargarDBs(componentesPath,resultsPath,feedbackPath, inspiracionPath)
                 with open(problemasPath, 'r') as f:
                     problemaDB = pd.read_json(StringIO(f.read()), lines=True)
                 with open(dataStructPath, 'r') as f:
@@ -155,11 +157,11 @@ def main():
                     #crear funcion para probar componentes generados para el problema.
                     componenteDB.to_json(componentesPath,orient='records',lines=True)
                     feedbackDB.to_json(feedbackPath,orient='records',lines=True)
-                    resultDB.to_json(resultPath,orient='records',lines=True)
-                    InspiracionDB.to_json(resultPath,orient='records',lines=True)
+                    resultDB.to_json(resultsPath,orient='records',lines=True)
+                    InspiracionDB.to_json(resultsPath,orient='records',lines=True)
                 return 0
         if args.opt:
-                componenteDB, feedbackDB, resultDB, InspiracionDB = cargarDBs(componentesPath,resultPath,feedbackPath, inspiracionPath)
+                componenteDB, feedbackDB, resultDB, InspiracionDB = cargarDBs(componentesPath,resultsPath,feedbackPath, inspiracionPath)
                 with open(problemasPath, 'r') as f:
                     problemaDB = pd.read_json(StringIO(f.read()), lines=True)
                 with open(dataStructPath, 'r') as f:
@@ -187,8 +189,8 @@ def main():
                     #crear funcion para probar componentes generados para el problema.
                     componenteDB.to_json(componentesPath,orient='records',lines=True)
                     feedbackDB.to_json(feedbackPath,orient='records',lines=True)
-                    resultDB.to_json(resultPath,orient='records',lines=True)
-                    InspiracionDB.to_json(resultPath,orient='records',lines=True)         
+                    resultDB.to_json(resultsPath,orient='records',lines=True)
+                    InspiracionDB.to_json(resultsPath,orient='records',lines=True)         
         if args.skip_prep and not args.opt and not args.prep:
             instancias = instancias.getInstancias(problema_ID)
             if len(instancias) == 0 : 
@@ -200,7 +202,7 @@ def main():
                 componenteDBNP, feedbackDBNP, resultDBNP = Optimizacion.optimizarProblemaSinPreparar(instancia.claveInstancia,instancia.problem, instancia.parsedSolution, componenteDBNP,resultDBNP,feedbackDBNP, iteraciones) # Revisar logica para que efectivamente trabaje con los problemas en bruto. Parece que de momento utiliza los mismos que el sistema convencional
                 componenteDBNP.to_json(componentesPath,orient='records',lines=True)
                 feedbackDBNP.to_json(feedbackPath,orient='records',lines=True)
-                resultDBNP.to_json(resultPath,orient='records',lines=True)
+                resultDBNP.to_json(resultsPath,orient='records',lines=True)
             return 0
 
     if args.batch and not args.problema_ID:
@@ -214,37 +216,37 @@ def main():
             print("Datos inicializados. Iniciando optimización")
             with open(problemasPath, 'r') as f:
                 problemaDB = pd.read_json(StringIO(f.read()), lines=True)
-            componenteDB, feedbackDB, resultDB = cargarDBs(componentesPath,resultPath,feedbackPath)
+            componenteDB, feedbackDB, resultDB = cargarDBs(componentesPath,resultsPath,feedbackPath)
             problemasFiltrados = problemaDB.iloc[filaMultiplo::filaMultiplo]
             for problema in problemasFiltrados.itertuples(index=False):    
                 componenteDB, feedbackDB, resultDB = Optimizacion.optimizarProblemaPreparadoConInspiraciones(problema, componenteDB,resultDB,feedbackDB, iteraciones)
                 componenteDB.to_json(componentesPath,orient='records',lines=True)
                 feedbackDB.to_json(feedbackPath,orient='records',lines=True)
-                resultDB.to_json(resultPath,orient='records',lines=True)
+                resultDB.to_json(resultsPath,orient='records',lines=True)
         if args.opt:
             print("Datos inicializados. Iniciando optimización")
             with open(problemasPath, 'r') as f:
                 problemaDB = pd.read_json(StringIO(f.read()), lines=True)
-            componenteDB, feedbackDB, resultDB = cargarDBs(componentesPath,resultPath,feedbackPath)
+            componenteDB, feedbackDB, resultDB = cargarDBs(componentesPath,resultsPath,feedbackPath)
             problemasFiltrados = problemaDB.iloc[filaMultiplo::filaMultiplo]
             for problema in problemasFiltrados.itertuples(index=False):    
                 componenteDB, feedbackDB, resultDB = Optimizacion.optimizarProblemaPreparado(problema, componenteDB,resultDB,feedbackDB, iteraciones)
                 componenteDB.to_json(componentesPath,orient='records',lines=True)
                 feedbackDB.to_json(feedbackPath,orient='records',lines=True)
-                resultDB.to_json(resultPath,orient='records',lines=True)
+                resultDB.to_json(resultsPath,orient='records',lines=True)
 
         if args.skip_prep and not args.opt and not args.prep:
             componenteDBNP, feedbackDBNP, resultDBNP = cargarDBs(componentesPathNP,resultPathNP,feedbackPathNP)
             instancias = instancias.getAllInstancias()
             if len(instancias) == 0: 
-                print("No se encontraron instancias de problemas para optimizar, revise que existen datos en %s con formato Tipo_dataset_ID, donde Tipo, dataset e ID son carpetas anidades en ese orden y/o que existen problemas definidos en un archivo que termine en *sample.csv dentro de %s", pathDB)
+                print("No se encontraron instancias de problemas para optimizar, revise que existen datos en %s con formato Tipo_dataset_ID, donde Tipo, dataset e ID son carpetas anidades en ese orden y/o que existen problemas definidos en un archivo que termine en *sample.csv dentro de %s", DATA_PATH)
                 return 0
             print("Datos inicializados. Iniciando Iniciando optimizacion")
             for instancia in instancias:
                 componenteDBNP, feedbackDBNP, resultDBNP = Optimizacion.optimizarProblemaSinPreparar(instancia.claveInstancia,instancia.problem, instancia.parsedSolution, componenteDBNP,resultDBNP,feedbackDBNP, iteraciones) # Revisar logica para que efectivamente trabaje con los problemas en bruto. Parece que de momento utiliza los mismos que el sistema convencional
                 componenteDBNP.to_json(componentesPath,orient='records',lines=True)
                 feedbackDBNP.to_json(feedbackPath,orient='records',lines=True)
-                resultDBNP.to_json(resultPath,orient='records',lines=True)
+                resultDBNP.to_json(resultsPath,orient='records',lines=True)
             return 0
        
 
