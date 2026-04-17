@@ -686,7 +686,7 @@ def sampleComponenteDB(componenteDB, problemaID,version,seed):
     return pd.DataFrame([datosComponentes])
 
 ## Feedback tiene que estar enfocado en un solo set de componentes a la vez. El ultimo que fue generado
-def generateFeedbackPrompt(schema,objetivo, restricciones, Eval, Nb, Perturb, SampleSol, resultadosSA, resultadosILS, resultadosTS, knownSol, knownObj, version):
+def generateFeedbackPrompt(schema,objetivo, restricciones, Eval, Nb, Perturb, SampleSol, resultadosSA, resultadosILS, resultadosTS,resultadosHC, knownSol, knownObj, version):
     prompt = feedbackTemplate.safe_substitute(
         schema=schema,
         objective = objetivo,
@@ -698,13 +698,14 @@ def generateFeedbackPrompt(schema,objetivo, restricciones, Eval, Nb, Perturb, Sa
         resultadosSA=resultadosSA,
         resultadosILS=resultadosILS, 
         resultadosTS=resultadosTS, 
+        resultadosHC=resultadosHC, 
         knownSol=knownSol, 
         knownScore=knownObj,
         version = version
     ) 
     return prompt
 
-def generateFeedbackPromptSP(problema, Eval, Nb, Perturb, SampleSol, resultadosSA, resultadosILS, resultadosTS, knownSol, knownObj, version):
+def generateFeedbackPromptSP(problema, Eval, Nb, Perturb, SampleSol, resultadosSA, resultadosILS, resultadosTS,resultadosHC, knownSol, knownObj, version):
     prompt = feedbackTemplateSP.safe_substitute(
         problema=problema,
         Eval=Eval, 
@@ -713,7 +714,8 @@ def generateFeedbackPromptSP(problema, Eval, Nb, Perturb, SampleSol, resultadosS
         SampleSol=SampleSol,
         resultadosSA=resultadosSA,
         resultadosILS=resultadosILS, 
-        resultadosTS=resultadosTS, 
+        resultadosTS=resultadosTS,
+        resultadosHC=resultadosHC, 
         knownSol=knownSol, 
         knownScore=knownObj,
         version = version

@@ -116,7 +116,7 @@ def _contarFallos(resultadosParseados: pd.Series) -> dict:
         'Failure_to_evaluate':             fallos[TipoFallo.FAILURE_TO_EVALUATE],
         'Failure_to_run_target_heuristic': fallos[TipoFallo.FAILURE_TO_RUN_TARGET_HEURISTIC],
         'Failure_to_load':                 fallos[TipoFallo.FAILURE_TO_LOAD],
-        'Invalid_score':                  fallos[TipoFallo.SCORE_INVALIDO],
+        'Invalid_score':                   fallos[TipoFallo.SCORE_INVALIDO],
         'Otros':                           fallos[TipoFallo.OTRO],
         'Total Fallos':                    sum(fallos.values()),
         'Total Exitos':                    exitos,
@@ -183,8 +183,8 @@ def generarFigurasYTablasLatexLocales(dfProcesado: pd.DataFrame, FallosTot: dict
     metricasRendimiento = _calcularMetricasRendimiento(dfProcesado)
     desempeñoPorSolver  = _desempeñoPorSolver(resultadosAux)
 
-    _imprimirResultados(FallosTot, tasaDeFallos, dfProcesado, correctitud, metricasRendimiento, desempeñoPorSolver)
-    _crearTablasLatex(dfProcesado, metricasRendimiento, desempeñoPorSolver, FallosTot, tasaDeFallos, output, pipeline)
+    _imprimirResultados(FallosTot, tasaDeFallos, dfProcesado, correctitud, metricasRendimiento, desempeñoPorSolver, pipeline)
+    _crearTablasLatex(dfProcesado,resultadosAux,FallosTot, output, pipeline)
     _plots(totalExperimentos, pipeline, dfProcesado, resultadosAux)
 
     return FallosTot, desempeñoPorSolver, metricasRendimiento
@@ -220,18 +220,18 @@ def _desempeñoPorSolver(resultadosAux: pd.DataFrame):
     desempeñoPorSolver['Tasa de Fallo'] = desempeñoPorSolver['TotalFallos'] / desempeñoPorSolver['TotalExperimentos']
     return desempeñoPorSolver
 
-def _imprimirResultados(FallosTot, tasaDeFallos, dfProcesado, correctitud, metricasRendimiento, desempeñoPorSolver):
+def _imprimirResultados(FallosTot, tasaDeFallos, dfProcesado, correctitud, metricasRendimiento, desempeñoPorSolver, pipeline):
     for key, count in FallosTot.items():
         if key not in ['Total Fallos', 'Total Exitos']:
             print(f"* {key}: {count}")
-    print("--- Metricas estandar de desempeño ---")
+    print(f"--- Metricas estandar de desempeño {pipeline}---")
     print(metricasRendimiento[['Metaheuristica','Promedio_Error_Porcentual', 'Desviacion_Estandar_Porcentual','Intervalo_de_Confianza_Error_Absoluto_Minimo','Intervalo_de_Confianza_Error_Absoluto_Maximo', 'Promedio_Error_Abs','Desviacion_Estandar_Abs', 'Intervalo_de_Confianza_Error_Porcentual_Minimo', 'Intervalo_de_Confianza_Error_Porcentual_Maximo']])
     print(f"Tasa de Fallos {tasaDeFallos:.2%}")
     print(dfProcesado[['Metaheuristica', 'Resultados', 'Puntaje Real', 'Valor Optimo']])
-    print("--- Desempeño por Solver ---")
+    print(f"--- Desempeño por Solver {pipeline}---")
     print(desempeñoPorSolver)
     totalExperimentosExitosos = len(dfProcesado)
-    print("---Soluciones identicas al optimo---")
+    print(f"---Soluciones identicas al optimo {pipeline}---")
     print(f"Éxitos en la práctica: {correctitud['Soluciones Identicas']} / {totalExperimentosExitosos} "
           f"({correctitud['Soluciones Identicas']/totalExperimentosExitosos:.2%})")
     print(f"Fallos en la práctica: {correctitud['Soluciones Distintas']} / {totalExperimentosExitosos} "
@@ -239,38 +239,63 @@ def _imprimirResultados(FallosTot, tasaDeFallos, dfProcesado, correctitud, metri
     print("--- Tasa De Fallo por solver ---")
     print(desempeñoPorSolver[['Metaheuristica', 'TotalExperimentos', 'Tasa de Fallo']].sort_values(by='Tasa de Fallo'))
 
-def _crearTablasLatex(dfProcesado, metricasRendimiento, desempeñoPorSolver, FallosTot, tasaDeFallos, output, pipeline):
-    ## escribir latex
-    latex1 = dfProcesado[['Metaheuristica', 'Resultados', 'Puntaje Real', 'Valor Optimo']].to_latex(index=False, column_format='lrrrr', caption=f'Resultados del procesado {pipeline}.', label=f'tab:{pipeline}_resultados_generales' )
-    latex2 = metricasRendimiento[['Metaheuristica','Promedio_Error_Porcentual', 'Desviacion_Estandar_Porcentual','Intervalo_de_Confianza_Error_Absoluto_Minimo','Intervalo_de_Confianza_Error_Absoluto_Maximo', 'Promedio_Error_Abs','Desviacion_Estandar_Abs', 'Intervalo_de_Confianza_Error_Porcentual_Minimo', 'Intervalo_de_Confianza_Error_Porcentual_Maximo']].to_latex(index=False, column_format='lrrrrrrrrr', caption=f'Métricas de rendimiento {pipeline}.', label=f'tab:{pipeline}_metricas' )
-    latex3 = desempeñoPorSolver[['Metaheuristica', 'TotalExperimentos', 'Tasa de Fallo']].sort_values(by='Tasa de Fallo').to_latex(index=False, column_format='lrrr', caption=f'Tasa de fallo del procesado {pipeline}.', label=f'tab:{pipeline}_fallos' )
+def _crearTablasLatex(dfProcesado, resultadosAux,FallosTot, output, pipeline):
+    ## escribir latex 
+    totales = resultadosAux.groupby("Metaheuristica").size()
+    resultadosPorMH = dfProcesado.groupby("Metaheuristica")["Solucion identica"].agg(
+        Optimos="sum",
+        Ejecuciones=lambda s: (~s).sum(),
+    )
+    dfTasaExito = totales.rename("Total").to_frame().join(resultadosPorMH, how="left").fillna(0)
+    dfTasaExito["Fallos"] = dfTasaExito["Total"] - (dfTasaExito["Optimos"] + dfTasaExito["Ejecuciones"])
+    dfTasaExito["\% Ópt."] = (dfTasaExito["Optimos"] / dfTasaExito["Total"] * 100).map("{:.1f}\\%".format)
+    dfTasaExito["\% Ejec."] = (dfTasaExito["Ejecuciones"] / dfTasaExito["Total"] * 100).map("{:.1f}\\%".format)
+    dfTasaExito["\% Fallo"] = (dfTasaExito["Fallos"] / dfTasaExito["Total"] * 100).map("{:.1f}\\%".format)
+    
+    mapaValores = {
+        'Failure_to_evaluate': 'FAILURE_TO_EVALUATE',
+        'Failure_to_run_target_heuristic': 'FAILURE_TO_RUN_TARGET_HEURISTIC',
+        'Failure_to_load': 'FAILURE_TO_LOAD',
+        'Invalid_score': 'SCORE_INVALIDO',
+        'Otros': 'OTRO'
+    }
+    
+    nombresLegibles = list(mapaValores.keys())
+    fallosAux = resultadosAux[~resultadosAux.index.isin(dfProcesado.index)]
+    if not fallosAux.empty and "TipoFallo" in fallosAux.columns:
+        dfFallos = (
+            fallosAux.groupby(["Metaheuristica", "TipoFallo"])
+            .size()
+            .unstack(fill_value=0)
+        )
+        tiposDeFallo = [mapaValores[k] for k in nombresLegibles]
+        dfFallos = dfFallos.reindex(columns=tiposDeFallo, fill_value=0)
+        dfFallos = dfFallos.rename(columns={v: k for k, v in mapaValores.items()})
+    else:
+        metaheuristicas = resultadosAux["Metaheuristica"].unique()
+        dfFallos = pd.DataFrame(0, index=metaheuristicas, columns=nombresLegibles)
 
-    ## escribir tablas
-
+    ## escribir tablas 
     with open(output, 'a', encoding='utf-8') as f:
-        ##tabla automagica en latex
-        f.write("\\begin{table}[H]\n")
-        f.write("\\centering\n")
-        f.write("\\caption{Resumen de fallos del procesado %s}\n" % pipeline)
-        f.write("\\label{tab:%s_resumen_fallos}\n" % pipeline)
-        f.write("\\begin{tabular}{lr}\n")
-        f.write("\\hline\n")
-        f.write("Tipo de fallo & Cantidad \\\\\n")
-        f.write("\\hline\n")
-        for key, count in FallosTot.items():
-            if key not in ['Total Fallos', 'Total Exitos']:
-                f.write(f"{key.replace('_',' ')} & {count} \\\\\n")
-        f.write("\\hline\n")
-        f.write(f"Tasa de Fallos & {tasaDeFallos:.2%} \\\\\n")
-        f.write("\\hline\n")
-        f.write("\\end{tabular}\n")
-        f.write("\\end{table}\n\n")
-        f.write("----------------------\n\n")
-        
-        f.write(latex1);f.write('----------------------\n\n')
-        f.write(latex2);f.write('----------------------\n\n')
-        f.write(latex3)
+         ##tabla automagica en latex 
+        f.write("\n")
+        cols_to_show = ["Optimos", "Ejecuciones", "Fallos", "\% Ópt.", "\% Ejec.", "\% Fallo"]
+        f.write(dfTasaExito[cols_to_show].style.to_latex(
+            hrules=True,
+            caption=f"Desglose de resultados: Óptimos, Ejecuciones y Fallos ({pipeline})",
+            label=f"tab:{pipeline}_desempeño",
+            column_format="lcccccc"
+        ))
+        f.write("\n")
+        f.write("\\begin{table}[H]\n\\centering\n")
+        f.write(f"\\caption{{Desglose de tipos de fallo por metaheurística ({pipeline})}}\n")
+        f.write(f"\\label{{tab:{pipeline}_modos_de_fallo}}\n")
+        dfFallos.columns = [str(c).replace('_', ' ').title() for c in dfFallos.columns]
+        f.write("\\begin{adjustbox}{max width=\\textwidth}\n{\n")
+        f.write(dfFallos.style.to_latex(hrules=True, column_format="l" + "c" * len(dfFallos.columns)))
+        f.write("}\n\\end{adjustbox}\n\\end{table}\n")
 
+    print(f"Tablas de LaTeX generadas exitosamente para {pipeline}")        
 
 ## requieren un estado global o que le pase todas las pipelines de una en main. Habra que pensar que es mejor
 def plotsGlobales(registroPipelines: dict):

@@ -33,7 +33,7 @@ def main():
     load_dotenv()
     #Modificacion para pruebas, prepara modo batch por defecto. Mas rapido en caso de que el codigo falle
     if len(sys.argv) == 1:
-        sys.argv.extend(['TS', 'traveling_salesman_hard_dataset_in_house_9_24', '-p'])
+        sys.argv.extend(['TS', 'traveling', '-plt'])
     DATA_PATH= os.path.join(os.path.dirname(__file__), 'Data')
     #Fin modificacion para pruebas
     parser = argparse.ArgumentParser()
@@ -53,7 +53,7 @@ def main():
     tipoProblema = args.tipoProblema
     if args.seed: semilla = args.seed
     os.makedirs(DATA_PATH, exist_ok=True)
-
+    pipeline = "prep"
     if args.opti:
         pipeline = "full-i"
     if args.opt:
@@ -67,9 +67,6 @@ def main():
     componentesPath = os.path.join(DATA_PATH, f'componentes-{tipoProblema}-{pipeline}.jsonl')
     feedbackPath = os.path.join(DATA_PATH,f'feedback-{tipoProblema}-{pipeline}.jsonl')
     resultsPath = os.path.join(DATA_PATH,f'resultados-{tipoProblema}-{pipeline}.jsonl')
-    componentesPathNP = os.path.join(DATA_PATH, f'componentes-NP-{tipoProblema}-NP.jsonl')
-    feedbackPathNP = os.path.join(DATA_PATH,f'feedback-NP-{tipoProblema}-NP.jsonl')
-    resultPathNP = os.path.join(DATA_PATH,f'resultados-NP-{tipoProblema}-NP.jsonl')
     
     instancias.cargarProblemas(tipoProblema)
     schemaEstandar, dataclassProblema, dataclassProblemaInst = instancias.getSchema(tipoProblema)
@@ -96,7 +93,7 @@ def main():
             tablaOutput = os.path.join(DATA_PATH,f'tablasLatex-{pipeline}.tex')
             dfProcesado, fallos, resultadosAux, correctitud = Analisis.procesarResultados(resultDB, instancias)
             Analisis.actualizarDictPipelines(FallosTot=fallos,registroPipelines=registroPipelines,pipeline=pipeline,dfProcesado=dfProcesado,resultadosAux=resultadosAux)
-            Analisis.generarFigurasYTablasLatexLocales(dfProcesado, fallos, resultadosAux,  correctitud,  tablaOutput,f"CE-{tipoProblema}")            
+            Analisis.generarFigurasYTablasLatexLocales(dfProcesado, fallos, resultadosAux,  correctitud,  tablaOutput,f"CE-{tipoProblema}-{pipeline}")            
             pd.set_option('display.float_format', lambda x: '%.0000f' % x) #Poco elegante pero funciona
         Analisis.plotsGlobales(registroPipelines)
         return 0
@@ -123,7 +120,6 @@ def main():
         parser.error("El argumento -np/--noprep no es compatible con --prep/-p y/o --opt/-o'")
     if args.problema_ID:
         problema_ID = args.problema_ID
-        print(problema_ID)
         if args.prep:
             print("Datos inicializados. Iniciando preparación")
             prepararIndividual(instancias,llms,problemasPath,dataStructPath,problema_ID,schemaEstandar, dataclassProblema) #NGuarda Datos directamente. Se usa el archivo CSV para pasar datos a traves del sistema
@@ -158,7 +154,7 @@ def main():
                     componenteDB.to_json(componentesPath,orient='records',lines=True)
                     feedbackDB.to_json(feedbackPath,orient='records',lines=True)
                     resultDB.to_json(resultsPath,orient='records',lines=True)
-                    InspiracionDB.to_json(resultsPath,orient='records',lines=True)
+                    InspiracionDB.to_json(inspiracionPath,orient='records',lines=True)   
                 return 0
         if args.opt:
                 componenteDB, feedbackDB, resultDB, InspiracionDB = cargarDBs(componentesPath,resultsPath,feedbackPath, inspiracionPath)
@@ -190,13 +186,13 @@ def main():
                     componenteDB.to_json(componentesPath,orient='records',lines=True)
                     feedbackDB.to_json(feedbackPath,orient='records',lines=True)
                     resultDB.to_json(resultsPath,orient='records',lines=True)
-                    InspiracionDB.to_json(resultsPath,orient='records',lines=True)         
+                    InspiracionDB.to_json(inspiracionPath,orient='records',lines=True)         
         if args.skip_prep and not args.opt and not args.prep:
             instancias = instancias.getInstancias(problema_ID)
             if len(instancias) == 0 : 
                 print("Id de problema %s no encontrado, definalo primero o revise los datos de entrada", problema_ID)
                 return 0
-            componenteDBNP, feedbackDBNP, resultDBNP = cargarDBs(componentesPathNP,resultPathNP,feedbackPathNP)
+            componenteDBNP, feedbackDBNP, resultDBNP = cargarDBs(componentesPath,resultsPath,feedbackPath)
             print("Datos inicializados. Iniciando Iniciando optimizacion")
             for instancia in instancias:
                 componenteDBNP, feedbackDBNP, resultDBNP = Optimizacion.optimizarProblemaSinPreparar(instancia.claveInstancia,instancia.problem, instancia.parsedSolution, componenteDBNP,resultDBNP,feedbackDBNP, iteraciones) # Revisar logica para que efectivamente trabaje con los problemas en bruto. Parece que de momento utiliza los mismos que el sistema convencional
@@ -236,7 +232,7 @@ def main():
                 resultDB.to_json(resultsPath,orient='records',lines=True)
 
         if args.skip_prep and not args.opt and not args.prep:
-            componenteDBNP, feedbackDBNP, resultDBNP = cargarDBs(componentesPathNP,resultPathNP,feedbackPathNP)
+            componenteDBNP, feedbackDBNP, resultDBNP = cargarDBs(componentesPath,resultsPath,feedbackPath)
             instancias = instancias.getAllInstancias()
             if len(instancias) == 0: 
                 print("No se encontraron instancias de problemas para optimizar, revise que existen datos en %s con formato Tipo_dataset_ID, donde Tipo, dataset e ID son carpetas anidades en ese orden y/o que existen problemas definidos en un archivo que termine en *sample.csv dentro de %s", DATA_PATH)

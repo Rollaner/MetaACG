@@ -233,7 +233,7 @@ def _detalle_area_por_iteracion(dfProcesado: pd.DataFrame,resultadosAux: pd.Data
     fallos, ejec, opts = _series_por_iteracion(dfProcesado, resultadosAux)
     idx = opts.index
 
-    fig, (ax_opt, ax_ejec, ax_fallo) = plt.subplots(3, 1, figsize=(10, 9), sharex=True)
+    fig, (ax_opt, ax_ejec, ax_fallo) = plt.subplots(3, 1, figsize=(10, 9), sharex=True, sharey=True)
 
     for ax, series, color, label in [
         (ax_opt,   opts,   paletaTriadicaDesempeño[2], "Óptimos"),

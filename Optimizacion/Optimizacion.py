@@ -16,6 +16,9 @@ import traceback
 import sys
 import json
 import numpy as np
+import re
+import math
+import random
 
 #Recalibración de las LLMS
 def reiniciarLLMS():
@@ -121,7 +124,7 @@ def optimizarProblemaPreparadoConInspiraciones(problema,schema,problemData, comp
         componenteDB = guardarComponentes(problemaID,componenteDB,representacion, Eval, Nb, Perturb, knownSol, iteraciones)
         respuestas = [] 
         feedbacks = []
-        i = 0
+        i: int = 0
         ### proceso iterativo
         while i < iteraciones:
             resultadoSA, tiempoSA = cronometrarFuncion(evaluarComponentes,Heuristicas.SimulatedAnnealing.SA,Eval, Nb, Perturb,problemData, knownSol,[1000,10,0.9])
@@ -153,7 +156,7 @@ def optimizarProblemaPreparadoConInspiraciones(problema,schema,problemData, comp
                 inspiracionDB = guardarComponentes(problemaID,inspiracionDB,representacion, Eval, Nb, Perturb, knownSol, i)
                 return componenteDB, feedbackDB, resultDB, inspiracionDB
             ### Retroalimentacion
-            feedbackPrompt = generateFeedbackPrompt(schema, objetivo, restricciones,Eval, Nb, Perturb, knownSol,resultadoSA, resultadoILS,resultadoTS, "NA", "NA", i) #Necesita trabajar con el nuevo sistema de JSON
+            feedbackPrompt = generateFeedbackPrompt(schema, objetivo, restricciones,Eval, Nb, Perturb, knownSol,resultadoSA, resultadoILS,resultadoTS,resultadoHC, "NA", "NA", i) #Necesita trabajar con el nuevo sistema de JSON
             feedback = llms.generarFeedback(feedbackPrompt) 
             feedbacks.append(feedback)
             feedbackTexto = feedback.content[0]['text']
@@ -172,6 +175,7 @@ def optimizarProblemaPreparadoConInspiraciones(problema,schema,problemData, comp
         print(resultadoSA)
         print(resultadoILS)
         print(resultadoTS)
+        print(resultadoHC)
         resultDB = guardarResultado(problemaID,i,resultDB,representacion, Eval,Nb,Perturb,resultadoSA,knownSol, "NA", "SA", tiempoSA)
         resultDB = guardarResultado(problemaID,i,resultDB,representacion,Eval,Nb,Perturb,resultadoILS,knownSol, "NA", "ILS", tiempoILS)
         resultDB = guardarResultado(problemaID,i,resultDB,representacion,Eval,Nb,Perturb,resultadoTS,knownSol, "NA", "TS", tiempoTS)
@@ -190,7 +194,7 @@ def optimizarProblemaPreparado(problema,schema,problemData, componenteDB:pd.Data
         componenteDB = guardarComponentes(problemaID,componenteDB,representacion, Eval, Nb, Perturb, knownSol, iteraciones)
         respuestas = [] 
         feedbacks = []
-        i = 0
+        i: int = 0
         ### proceso iterativo
         while i < iteraciones:
             resultadoSA, tiempoSA = cronometrarFuncion(evaluarComponentes,Heuristicas.SimulatedAnnealing.SA,Eval, Nb, Perturb,problemData, knownSol,[1000,10,0.9])
@@ -210,7 +214,7 @@ def optimizarProblemaPreparado(problema,schema,problemData, componenteDB:pd.Data
                 inspiracionDB = guardarComponentes(problemaID,inspiracionDB,representacion, Eval, Nb, Perturb, knownSol, i)
                 return componenteDB, feedbackDB, resultDB, inspiracionDB
             ### Retroalimentacion
-            feedbackPrompt = generateFeedbackPrompt(schema, objetivo, restricciones,Eval, Nb, Perturb, knownSol,resultadoSA, resultadoILS,resultadoTS, "NA", "NA", i) #Necesita trabajar con el nuevo sistema de JSON
+            feedbackPrompt = generateFeedbackPrompt(schema, objetivo, restricciones,Eval, Nb, Perturb, knownSol,resultadoSA, resultadoILS,resultadoTS,resultadoHC, "NA", "NA", i) #Necesita trabajar con el nuevo sistema de JSON
             feedback = llms.generarFeedback(feedbackPrompt) 
             feedbacks.append(feedback)
             feedbackTexto = feedback.content[0]['text']
@@ -229,6 +233,7 @@ def optimizarProblemaPreparado(problema,schema,problemData, componenteDB:pd.Data
         print(resultadoSA)
         print(resultadoILS)
         print(resultadoTS)
+        print(resultadoHC)
         resultDB = guardarResultado(problemaID,i,resultDB,representacion, Eval,Nb,Perturb,resultadoSA,knownSol, "NA", "SA", tiempoSA)
         resultDB = guardarResultado(problemaID,i,resultDB,representacion,Eval,Nb,Perturb,resultadoILS,knownSol, "NA", "ILS", tiempoILS)
         resultDB = guardarResultado(problemaID,i,resultDB,representacion,Eval,Nb,Perturb,resultadoTS,knownSol, "NA", "TS", tiempoTS)
@@ -246,7 +251,7 @@ def optimizarProblemaSinPreparar(problemaID, problema,problemData,knownSol, know
         componenteDB = guardarComponentes(problemaID,componenteDB,representacion, Eval, Nb, Perturb, knownSol, iteraciones)
         respuestas = [] 
         feedbacks = []
-        i = 0
+        i: int = 0
         ### proceso iterativo
         while i < iteraciones:
             resultadoSA, tiempoSA = cronometrarFuncion(evaluarComponentes,Heuristicas.SimulatedAnnealing.SA,Eval, Nb, Perturb,problemData, knownSol,[1000,10,0.9])
@@ -266,7 +271,7 @@ def optimizarProblemaSinPreparar(problemaID, problema,problemData,knownSol, know
                 inspiracionDB = guardarComponentes(problemaID,inspiracionDB,representacion, Eval, Nb, Perturb, knownSol, i)
                 return componenteDB, feedbackDB, resultDB, inspiracionDB
             ### Retroalimentacion
-            feedbackPrompt = generateFeedbackPromptSP(problema,Eval, Nb, Perturb, knownSol,resultadoSA, resultadoILS,resultadoTS, "NA", "NA", i) 
+            feedbackPrompt = generateFeedbackPromptSP(problema,Eval, Nb, Perturb, knownSol,resultadoSA, resultadoILS,resultadoTS,resultadoHC, "NA", "NA", i) 
             feedback = llms.generarFeedback(feedbackPrompt) 
             feedbacks.append(feedback)
             feedbackTexto = feedback.content[0]['text']
@@ -421,7 +426,7 @@ def guardarResultado(problemaID, iteracion,resultDB, representacion, evaluacion,
     }
     dfAux = pd.DataFrame([datosResultado])
     dfAux = dfAux.dropna(axis=1, how='all')
-    resultDBMod = pd.concat([resultDB,dfAux], ignore_index=True) #
+    resultDBMod = pd.concat([resultDB,dfAux], ignore_index=True) 
     return resultDBMod
 
 def guardarFeedback(problemaID,feedbackDB, representacion, Eval, Nb, Perturb, version, feedback):
