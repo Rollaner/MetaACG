@@ -33,7 +33,9 @@ def main():
     load_dotenv()
     #Modificacion para pruebas, prepara modo batch por defecto. Mas rapido en caso de que el codigo falle
     if len(sys.argv) == 1:
-        sys.argv.extend(['TS', 'traveling', '-plt'])
+        sys.argv.extend(['K', 'knap', '-plt'])
+        #sys.argv.extend(['GC', 'graph', '-plt'])
+        #sys.argv.extend(['TS', 'travel', '-plt'])
     DATA_PATH= os.path.join(os.path.dirname(__file__), 'Data')
     #Fin modificacion para pruebas
     parser = argparse.ArgumentParser()
@@ -91,9 +93,9 @@ def main():
 
         for pipeline, resultDB in zip(pipelines, resultados):
             tablaOutput = os.path.join(DATA_PATH,f'tablasLatex-{pipeline}.tex')
-            dfProcesado, fallos, resultadosAux, correctitud = Analisis.procesarResultados(resultDB, instancias)
+            dfProcesado, fallos,fallosI,fallosS, resultadosAux, correctitud,correctituI,correctitudS = Analisis.procesarResultados(resultDB, instancias)
             Analisis.actualizarDictPipelines(FallosTot=fallos,registroPipelines=registroPipelines,pipeline=pipeline,dfProcesado=dfProcesado,resultadosAux=resultadosAux)
-            Analisis.generarFigurasYTablasLatexLocales(dfProcesado, fallos, resultadosAux,  correctitud,  tablaOutput,f"CE-{tipoProblema}-{pipeline}")            
+            Analisis.generarFigurasYTablasLatexLocales(dfProcesado, fallos,fallosI,fallosS, resultadosAux,  correctitud,correctituI,correctitudS,  tablaOutput,f"CE-{tipoProblema}-{pipeline}")            
             pd.set_option('display.float_format', lambda x: '%.0000f' % x) #Poco elegante pero funciona
         Analisis.plotsGlobales(registroPipelines)
         return 0
@@ -195,7 +197,7 @@ def main():
             componenteDBNP, feedbackDBNP, resultDBNP = cargarDBs(componentesPath,resultsPath,feedbackPath)
             print("Datos inicializados. Iniciando Iniciando optimizacion")
             for instancia in instancias:
-                componenteDBNP, feedbackDBNP, resultDBNP = Optimizacion.optimizarProblemaSinPreparar(instancia.claveInstancia,instancia.problem, instancia.parsedSolution, componenteDBNP,resultDBNP,feedbackDBNP, iteraciones) # Revisar logica para que efectivamente trabaje con los problemas en bruto. Parece que de momento utiliza los mismos que el sistema convencional
+                componenteDBNP, feedbackDBNP, resultDBNP = Optimizacion.optimizarProblemaSinPreparar(instancia.claveInstancia,instancia.problem, instancia.parsedSolution,instancia.objectiveScore, componenteDBNP,resultDBNP,feedbackDBNP, iteraciones) 
                 componenteDBNP.to_json(componentesPath,orient='records',lines=True)
                 feedbackDBNP.to_json(feedbackPath,orient='records',lines=True)
                 resultDBNP.to_json(resultsPath,orient='records',lines=True)
@@ -239,7 +241,7 @@ def main():
                 return 0
             print("Datos inicializados. Iniciando Iniciando optimizacion")
             for instancia in instancias:
-                componenteDBNP, feedbackDBNP, resultDBNP = Optimizacion.optimizarProblemaSinPreparar(instancia.claveInstancia,instancia.problem, instancia.parsedSolution, componenteDBNP,resultDBNP,feedbackDBNP, iteraciones) # Revisar logica para que efectivamente trabaje con los problemas en bruto. Parece que de momento utiliza los mismos que el sistema convencional
+                componenteDBNP, feedbackDBNP, resultDBNP = Optimizacion.optimizarProblemaSinPreparar(instancia.claveInstancia,instancia.problem, instancia.parsedSolution,instancia.objectiveScore, componenteDBNP,resultDBNP,feedbackDBNP, iteraciones) 
                 componenteDBNP.to_json(componentesPath,orient='records',lines=True)
                 feedbackDBNP.to_json(feedbackPath,orient='records',lines=True)
                 resultDBNP.to_json(resultsPath,orient='records',lines=True)

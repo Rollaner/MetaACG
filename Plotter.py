@@ -212,7 +212,7 @@ def _stacked_area_por_iteracion(dfProcesado, resultadosAux, pipeline, output_dir
         opts.index,
         opts_pct, ejec_pct, fallos_pct,
         labels=["Óptimos", "Ejecuciones", "Fallos"],
-        colors=paletaTriadica[::-1],
+        colors=paletaTriadicaDesempeño[::-1],
         alpha=0.85,
     )
     ax.set_ylim(0, 100)

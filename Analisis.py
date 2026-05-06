@@ -12,9 +12,9 @@ import Plotter
 
 #Esto causara un fallo immediato si se cambian los outputs del evaluador sin actualizar _clasificarFallo tambien.
 class TipoFallo(Enum):
-    FAILURE_TO_EVALUATE = auto()
-    FAILURE_TO_RUN_TARGET_HEURISTIC = auto()
-    FAILURE_TO_LOAD = auto()
+    FAILED_TO_EVALUATE = auto()
+    FAILED_TO_RUN_TARGET_HEURISTIC = auto()
+    FAILED_TO_LOAD = auto()
     SCORE_INVALIDO = auto()  # Se assume que inf equivale a >=1e3 debido al rango de puntajes promedio. Con otros problemas esta restriccion se tiene que relajar 
     OTRO = auto()
 
@@ -57,13 +57,13 @@ def _contarCorrectitud(comparaciones: pd.Series) -> dict:
     }
 
 def _clasificarFallo(texto: str) -> TipoFallo:
-    texto = texto.lower()
-    if 'failed_to_evaluate' in texto:
-        return TipoFallo.FAILURE_TO_EVALUATE
-    if 'failed_to_run_target_heuristic' in texto:
-        return TipoFallo.FAILURE_TO_RUN_TARGET_HEURISTIC
-    if 'failed_to_load' in texto:
-        return TipoFallo.FAILURE_TO_LOAD
+    texto = texto.lower().replace("_", " ")
+    if 'failed to evaluate' in texto:
+        return TipoFallo.FAILED_TO_EVALUATE
+    if 'failed to run target heuristic' in texto:
+        return TipoFallo.FAILED_TO_RUN_TARGET_HEURISTIC
+    if 'failed to load' in texto:
+        return TipoFallo.FAILED_TO_LOAD
     return TipoFallo.OTRO
 
 def _extraerPuntaje(resultado) -> float | None:
@@ -103,19 +103,14 @@ def parsearResultado(resultado) -> ResultadoParseado:
     return ResultadoParseado(score=score, fallo=None)
 
 def _contarFallos(resultadosParseados: pd.Series) -> dict:
-    fallos = {t: 0 for t in TipoFallo}
-    exitos = 0
-
-    for resultado in resultadosParseados:
-        if resultado.valido:
-            exitos += 1
-        else:
-            fallos[resultado.fallo] += 1
+    contador = resultadosParseados.apply(lambda x: x.fallo if not x.valido else 'EXITO').value_counts()
+    fallos = {t: contador.get(t, 0) for t in TipoFallo}
+    exitos = contador.get('EXITO', 0)
 
     return {
-        'Failure_to_evaluate':             fallos[TipoFallo.FAILURE_TO_EVALUATE],
-        'Failure_to_run_target_heuristic': fallos[TipoFallo.FAILURE_TO_RUN_TARGET_HEURISTIC],
-        'Failure_to_load':                 fallos[TipoFallo.FAILURE_TO_LOAD],
+        'Failed to evaluate':             fallos[TipoFallo.FAILED_TO_EVALUATE],
+        'Failed to run target heuristic': fallos[TipoFallo.FAILED_TO_RUN_TARGET_HEURISTIC],
+        'Failed to load':                 fallos[TipoFallo.FAILED_TO_LOAD],
         'Invalid_score':                   fallos[TipoFallo.SCORE_INVALIDO],
         'Otros':                           fallos[TipoFallo.OTRO],
         'Total Fallos':                    sum(fallos.values()),
@@ -139,13 +134,19 @@ def procesarResultados(resultados: pd.DataFrame, instancias: DataLoader):
     resultadosAux['Solucion'] = resultadosAux['ID_Problema'].map(
         lambda id_: _getSolucion(id_, instancias)
     )
+
     resultadosAux['Resultados'] = resultadosAux['Resultados'].apply(_normalizarResultado)
+    resultadosAuxI = resultadosAux[resultadosAux['ID_Problema'].str.endswith('inverted')]
+    resultadosAuxS = resultadosAux[resultadosAux['ID_Problema'].str.endswith('standard')]
 
     resultadosParseados = resultadosAux['Resultados'].apply(parsearResultado)
+    resultadosParseadosI = resultadosAuxI['Resultados'].apply(parsearResultado)
+    resultadosParseadosS = resultadosAuxS['Resultados'].apply(parsearResultado)
+
 
     puntajes = resultadosParseados.apply(lambda r: r.score if r.valido else np.nan)
-
     resultadosAux['Puntaje Real'] = puntajes  
+
 
     dfProcesado = resultadosAux[puntajes.notna()].copy()  
 
@@ -154,21 +155,27 @@ def procesarResultados(resultados: pd.DataFrame, instancias: DataLoader):
         axis=1
     )
 
-    
     dfProcesado['Solucion identica'] = dfProcesado.apply(
         lambda row: _compararSoluciones(row['Resultados'], row['Solucion']), axis=1
     )
-
-    tiposFallos = _contarFallos(resultadosParseados)
     
+    tiposFallos = _contarFallos(resultadosParseados)
+    tiposFallosI = _contarFallos(resultadosParseadosI)
+    tiposFallosS = _contarFallos(resultadosParseadosS)
+
+    dfProcesadoI = dfProcesado[dfProcesado['ID_Problema'].str.endswith('inverted')]
+    dfProcesadoS = dfProcesado[dfProcesado['ID_Problema'].str.endswith('standard')]
+
     correctitud = _contarCorrectitud(dfProcesado['Solucion identica'])
+    correctitudI = _contarCorrectitud(dfProcesadoI['Solucion identica'])
+    correctitudS = _contarCorrectitud(dfProcesadoS['Solucion identica'])
 
     dfProcesado['Diferencia Absoluta']    = ( dfProcesado['Puntaje Real'] -  dfProcesado['Valor Optimo']).abs()
     dfProcesado['Diferencia Porcentual']  = ( dfProcesado['Diferencia Absoluta'] /  dfProcesado['Valor Optimo']).abs() * 100 #Valor optimo de EHOP nunca es cero
 
     resultadosAux['TipoFallo'] = resultadosParseados.apply(lambda r: r.fallo.name if not r.valido else None)
 
-    return dfProcesado,tiposFallos, resultadosAux,  correctitud
+    return dfProcesado,tiposFallos,tiposFallosI,tiposFallosS,resultadosAux,correctitud,correctitudI,correctitudS
 
 def agregarResultados(dfProcesado: pd.DataFrame, resultadosAux: pd.DataFrame) -> dict:
     fallos      = len(resultadosAux) - len(dfProcesado)
@@ -177,13 +184,13 @@ def agregarResultados(dfProcesado: pd.DataFrame, resultadosAux: pd.DataFrame) ->
     assert fallos + ejecuciones + optimos == len(resultadosAux), "Los totales no cuadran"
     return {'Fallos': fallos, 'Ejecuciones': ejecuciones, 'Optimos': optimos}
 
-def generarFigurasYTablasLatexLocales(dfProcesado: pd.DataFrame, FallosTot: dict, resultadosAux: pd.DataFrame, correctitud: dict, output: str, pipeline: str):
+def generarFigurasYTablasLatexLocales(dfProcesado: pd.DataFrame, FallosTot: dict,FallosTotI: dict,FallosTotS: dict, resultadosAux: pd.DataFrame, correctitud: dict,correctitudI: dict,correctitudS: dict, output: str, pipeline: str):
     totalExperimentos = len(resultadosAux)
     tasaDeFallos      = FallosTot['Total Fallos'] / totalExperimentos
     metricasRendimiento = _calcularMetricasRendimiento(dfProcesado)
     desempeñoPorSolver  = _desempeñoPorSolver(resultadosAux)
 
-    _imprimirResultados(FallosTot, tasaDeFallos, dfProcesado, correctitud, metricasRendimiento, desempeñoPorSolver, pipeline)
+    _imprimirResultados(FallosTot,FallosTotI,FallosTotS, tasaDeFallos, dfProcesado, correctitud,correctitudI,correctitudS, metricasRendimiento, desempeñoPorSolver, pipeline)
     _crearTablasLatex(dfProcesado,resultadosAux,FallosTot, output, pipeline)
     _plots(totalExperimentos, pipeline, dfProcesado, resultadosAux)
 
@@ -209,7 +216,7 @@ def _calcularMetricasRendimiento(dfProcesado):
     metricasRendimiento['Intervalo_de_Confianza_Error_Porcentual_Maximo'] = ( metricasRendimiento['Promedio_Error_Porcentual'] + tCritico * margenPor )
     return metricasRendimiento
 
-def _desempeñoPorSolver(resultadosAux: pd.DataFrame):
+def _desempeñoPorSolver(resultadosAux: pd.DataFrame): #Tiene problemas. Revisar
     desempeñoPorSolver = (resultadosAux
         .assign(Exito=resultadosAux['Puntaje Real'].notna()) ## crea una copia y le aplica una mascara para que filtremos todo lo que no sea una ejecucion exitosa
         .groupby('Metaheuristica')['Exito']
@@ -220,21 +227,46 @@ def _desempeñoPorSolver(resultadosAux: pd.DataFrame):
     desempeñoPorSolver['Tasa de Fallo'] = desempeñoPorSolver['TotalFallos'] / desempeñoPorSolver['TotalExperimentos']
     return desempeñoPorSolver
 
-def _imprimirResultados(FallosTot, tasaDeFallos, dfProcesado, correctitud, metricasRendimiento, desempeñoPorSolver, pipeline):
+def _imprimirResultados(FallosTot,FallosTotI,FallosTotS, tasaDeFallos, dfProcesado, correctitud,correctitudI,correctitudS, metricasRendimiento, desempeñoPorSolver, pipeline):
+    totalExperimentosExitosos = len(dfProcesado)
+    print(f"--- Metricas problemas invertidos {pipeline}---")
+    print(f"--- Tasa de fallo {pipeline}---")
+    for key, count in FallosTotI.items():
+        if key not in ['Total Fallos', 'Total Exitos']:
+            print(f"* {key}: {count}")
+    print(  f"Fallos Totales: {FallosTotI["Total Fallos"]}")
+    print(f"---Soluciones identicas al optimo {pipeline}---")
+    print(f"Soluciones Identicas: {correctitudI['Soluciones Identicas']} / {totalExperimentosExitosos} "
+          f"({correctitudI['Soluciones Identicas']/totalExperimentosExitosos:.2%})")
+    print(f"Soluciones Distintas: {correctitudI['Soluciones Distintas']} / {totalExperimentosExitosos} "
+          f"({correctitudI['Soluciones Distintas']/totalExperimentosExitosos:.2%})")
+    print(f"--- Metricas problemas estandar {pipeline}---")
+    print(f"--- Tasa de fallo {pipeline}---")
+    for key, count in FallosTotS.items():
+        if key not in ['Total Fallos', 'Total Exitos']:
+            print(f"* {key}: {count}")
+    print(  f"Fallos Totales: {FallosTotS["Total Fallos"]}")
+    print(f"---Soluciones identicas al optimo {pipeline}---")
+    print(f"Soluciones Identicas: {correctitudS['Soluciones Identicas']} / {totalExperimentosExitosos} "
+          f"({correctitudS['Soluciones Identicas']/totalExperimentosExitosos:.2%})")
+    print(f"Soluciones Distintas: {correctitudS['Soluciones Distintas']} / {totalExperimentosExitosos} "
+          f"({correctitudS['Soluciones Distintas']/totalExperimentosExitosos:.2%})")
+    print(f"--- Metricas generales {pipeline}---")
+    print(f"--- Tasa de fallo {pipeline}---")
     for key, count in FallosTot.items():
         if key not in ['Total Fallos', 'Total Exitos']:
             print(f"* {key}: {count}")
+    print(  f"Fallos Totales: {FallosTot["Total Fallos"]}")
     print(f"--- Metricas estandar de desempeño {pipeline}---")
     print(metricasRendimiento[['Metaheuristica','Promedio_Error_Porcentual', 'Desviacion_Estandar_Porcentual','Intervalo_de_Confianza_Error_Absoluto_Minimo','Intervalo_de_Confianza_Error_Absoluto_Maximo', 'Promedio_Error_Abs','Desviacion_Estandar_Abs', 'Intervalo_de_Confianza_Error_Porcentual_Minimo', 'Intervalo_de_Confianza_Error_Porcentual_Maximo']])
     print(f"Tasa de Fallos {tasaDeFallos:.2%}")
     print(dfProcesado[['Metaheuristica', 'Resultados', 'Puntaje Real', 'Valor Optimo']])
     print(f"--- Desempeño por Solver {pipeline}---")
     print(desempeñoPorSolver)
-    totalExperimentosExitosos = len(dfProcesado)
     print(f"---Soluciones identicas al optimo {pipeline}---")
-    print(f"Éxitos en la práctica: {correctitud['Soluciones Identicas']} / {totalExperimentosExitosos} "
+    print(f"Soluciones Identicas: {correctitud['Soluciones Identicas']} / {totalExperimentosExitosos} "
           f"({correctitud['Soluciones Identicas']/totalExperimentosExitosos:.2%})")
-    print(f"Fallos en la práctica: {correctitud['Soluciones Distintas']} / {totalExperimentosExitosos} "
+    print(f"Soluciones Distintas: {correctitud['Soluciones Distintas']} / {totalExperimentosExitosos} "
           f"({correctitud['Soluciones Distintas']/totalExperimentosExitosos:.2%})")
     print("--- Tasa De Fallo por solver ---")
     print(desempeñoPorSolver[['Metaheuristica', 'TotalExperimentos', 'Tasa de Fallo']].sort_values(by='Tasa de Fallo'))
@@ -248,9 +280,9 @@ def _crearTablasLatex(dfProcesado, resultadosAux,FallosTot, output, pipeline):
     )
     dfTasaExito = totales.rename("Total").to_frame().join(resultadosPorMH, how="left").fillna(0)
     dfTasaExito["Fallos"] = dfTasaExito["Total"] - (dfTasaExito["Optimos"] + dfTasaExito["Ejecuciones"])
-    dfTasaExito["\% Ópt."] = (dfTasaExito["Optimos"] / dfTasaExito["Total"] * 100).map("{:.1f}\\%".format)
-    dfTasaExito["\% Ejec."] = (dfTasaExito["Ejecuciones"] / dfTasaExito["Total"] * 100).map("{:.1f}\\%".format)
-    dfTasaExito["\% Fallo"] = (dfTasaExito["Fallos"] / dfTasaExito["Total"] * 100).map("{:.1f}\\%".format)
+    dfTasaExito[r"\% Ópt."] = (dfTasaExito["Optimos"] / dfTasaExito["Total"] * 100).map("{:.1f}\\%".format)
+    dfTasaExito[r"\% Ejec."] = (dfTasaExito["Ejecuciones"] / dfTasaExito["Total"] * 100).map("{:.1f}\\%".format)
+    dfTasaExito[r"\% Fallo"] = (dfTasaExito["Fallos"] / dfTasaExito["Total"] * 100).map("{:.1f}\\%".format)
     
     mapaValores = {
         'Failure_to_evaluate': 'FAILURE_TO_EVALUATE',
@@ -279,7 +311,7 @@ def _crearTablasLatex(dfProcesado, resultadosAux,FallosTot, output, pipeline):
     with open(output, 'a', encoding='utf-8') as f:
          ##tabla automagica en latex 
         f.write("\n")
-        cols_to_show = ["Optimos", "Ejecuciones", "Fallos", "\% Ópt.", "\% Ejec.", "\% Fallo"]
+        cols_to_show = [ r"\% Ópt.", r"\% Ejec.", r"\% Fallo", "Optimos", "Ejecuciones", "Fallos"]
         f.write(dfTasaExito[cols_to_show].style.to_latex(
             hrules=True,
             caption=f"Desglose de resultados: Óptimos, Ejecuciones y Fallos ({pipeline})",

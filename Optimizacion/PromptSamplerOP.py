@@ -420,17 +420,16 @@ FEEDBACK:
 $Feedback
 """)
 
-feedbackTemplate= Template("""TASK:GENERATE_FEEDBACK_FOR_COMPONENT_REFINEMENT 
+feedbackTemplateEval= Template("""TASK:GENERATE_FEEDBACK_FOR_COMPONENT_REFINEMENT 
 FEEDBACK_INSTRUCTIONS:
-0.LOCAL_SOLVER_ERRORS_MUST_BE_CORRECTED_FIRST_IF_NO_CRITICAL_ERRORS_OUTPUT: "CODE_STATUS: OPTIMAL"
+0.CRITICAL_LOCAL_SOLVER_ERRORS_MUST_BE_CORRECTED_BEFORE_REFINEMENT_ALLOWED
 1.GENERATE_CONSTRUCTIVE_FEEDBACK:ONLY_FLAG_ERRORS_THAT_CRASH_LOCAL_SOLVER
 2.FORMAT_AS_KEY_VALUE_PAIRS.EX: "E_CODE_PARSE_ERROR: Solution is string, while E_CODE expects an array"
-3.IF_ERRORS_FOUND_PINPOINT_SPECIFIC_FLAW_SUGGEST_SPECIFIC_IMPROVEMENT. MAXIMUM_4_ITEMS_ALLOWED_ONLY_SUGGEST_CHANGES_IF_REDUCES_ERROR_COUNT
+3.IF_ERRORS_FOUND_PINPOINT_SPECIFIC_FLAW_SUGGEST_SPECIFIC_IMPROVEMENT. MAXIMUM_4_ITEMS_ALLOWED_ONLY_SUGGEST_CHANGES_TO_FIX_CRITICAL_ERRORS
 4.PROBLEM_DATACLASS,KNOWN_RANDOM_SOLUTION_AND_VALUE_GIVEN: USE_PYTHON_TOOL_TO_EVALUATE_COMPONENTS_TO_ASSERT_CORRECTNESS_OF_COMPONENTS
 5.LOCAL_SOLVER_DESIGNED_FOR_EVALUATION_EXTRA_OUTPUTS_ARE_EXPECTED
 6.CODE_MUST_BE_COMPATIBLE_WITH_SAMPLE_SOLUTION_AND_LOCAL_SOLVER
 7.LOCAL_SOLVER_CANNOT_OBTAIN_PROBLEM_DATA_DIRECTLY_FUNCTIONS_MUST_DO_IT_VIA_DIRECT_ACCESS_ONLY
-8.DO_NOT_FIX_SUCCESS: IF_SCORE_BEATS_KNOWN_BEST_WHILE_CONSISTENT_WITH_DATA_AND_CONSTRAINTS_OUTPUT: "CODE_STATUS: OPTIMAL"
 PROBLEM_DATACLASS:
 ---
 $schema
@@ -444,11 +443,92 @@ PROBLEM_CONSTRAINTS:
 $constraints
 ---
 TARGET_HEURISTIC_GENERAL_SIGNATURE= "def Heuristic(currentSolution,best, best_score, generate_neighbour, evaluate_solution, perturb_solution, other_params)".                       
-COMPONENTS:
+COMPONENT:
 "Evaluation Function":
 $Eval
+"Sample Solution":
+$SampleSol
+RESULTS_FROM_LOCAL_SOLVER
+Simulated_Annealing
+$resultadosSA
+Iterated_Local_Search
+$resultadosILS
+HillClimbing
+$resultadosHC
+KNOWN_BENCHMARK_SOLUTION
+$knownSol
+EXPECTED_SCORE_FROM_KNOWN_BENCHMARK_SOLUTION
+$knownScore
+OUTPUT_FORMAT_STRICT:
+"COMPONENT_VERSION" "$version", "FEEDBACK" """)
+
+feedbackTemplateNb= Template("""TASK:GENERATE_FEEDBACK_FOR_COMPONENT_REFINEMENT 
+FEEDBACK_INSTRUCTIONS:
+0.CRITICAL_LOCAL_SOLVER_ERRORS_MUST_BE_CORRECTED_BEFORE_REFINEMENT_ALLOWED
+1.GENERATE_CONSTRUCTIVE_FEEDBACK:ONLY_FLAG_ERRORS_THAT_CRASH_LOCAL_SOLVER
+2.FORMAT_AS_KEY_VALUE_PAIRS.EX: "E_CODE_PARSE_ERROR: Solution is string, while E_CODE expects an array"
+3.IF_ERRORS_FOUND_PINPOINT_SPECIFIC_FLAW_SUGGEST_SPECIFIC_IMPROVEMENT. MAXIMUM_4_ITEMS_ALLOWED_ONLY_SUGGEST_CHANGES_TO_FIX_CRITICAL_ERRORS
+4.PROBLEM_DATACLASS,KNOWN_RANDOM_SOLUTION_AND_VALUE_GIVEN: USE_PYTHON_TOOL_TO_EVALUATE_COMPONENTS_TO_ASSERT_CORRECTNESS_OF_COMPONENTS
+5.LOCAL_SOLVER_DESIGNED_FOR_EVALUATION_EXTRA_OUTPUTS_ARE_EXPECTED
+6.CODE_MUST_BE_COMPATIBLE_WITH_SAMPLE_SOLUTION_AND_LOCAL_SOLVER
+7.LOCAL_SOLVER_CANNOT_OBTAIN_PROBLEM_DATA_DIRECTLY_FUNCTIONS_MUST_DO_IT_VIA_DIRECT_ACCESS_ONLY
+PROBLEM_DATACLASS:
+---
+$schema
+---
+PROBLEM_OBJECTIVE:
+---
+$objective
+---
+PROBLEM_CONSTRAINTS:
+---
+$constraints
+---
+TARGET_HEURISTIC_GENERAL_SIGNATURE= "def Heuristic(currentSolution,best, best_score, generate_neighbour, evaluate_solution, perturb_solution, other_params)".                       
+COMPONENT:
 "Neigbour Function":
 $NB    
+"Sample Solution":
+$SampleSol
+RESULTS_FROM_LOCAL_SOLVER
+Simulated_Annealing
+$resultadosSA
+Iterated_Local_Search
+$resultadosILS
+HillClimbing
+$resultadosHC
+KNOWN_BENCHMARK_SOLUTION
+$knownSol
+EXPECTED_SCORE_FROM_KNOWN_BENCHMARK_SOLUTION
+$knownScore
+OUTPUT_FORMAT_STRICT:
+"COMPONENT_VERSION" "$version", "FEEDBACK" """)
+
+
+feedbackTemplatePerturb= Template("""TASK:GENERATE_FEEDBACK_FOR_COMPONENT_REFINEMENT 
+FEEDBACK_INSTRUCTIONS:
+0.CRITICAL_LOCAL_SOLVER_ERRORS_MUST_BE_CORRECTED_BEFORE_REFINEMENT_ALLOWED
+1.GENERATE_CONSTRUCTIVE_FEEDBACK:ONLY_FLAG_ERRORS_THAT_CRASH_LOCAL_SOLVER
+2.FORMAT_AS_KEY_VALUE_PAIRS.EX: "E_CODE_PARSE_ERROR: Solution is string, while E_CODE expects an array"
+3.IF_ERRORS_FOUND_PINPOINT_SPECIFIC_FLAW_SUGGEST_SPECIFIC_IMPROVEMENT. MAXIMUM_4_ITEMS_ALLOWED_ONLY_SUGGEST_CHANGES_TO_FIX_CRITICAL_ERRORS
+4.PROBLEM_DATACLASS,KNOWN_RANDOM_SOLUTION_AND_VALUE_GIVEN: USE_PYTHON_TOOL_TO_EVALUATE_COMPONENTS_TO_ASSERT_CORRECTNESS_OF_COMPONENTS
+5.LOCAL_SOLVER_DESIGNED_FOR_EVALUATION_EXTRA_OUTPUTS_ARE_EXPECTED
+6.CODE_MUST_BE_COMPATIBLE_WITH_SAMPLE_SOLUTION_AND_LOCAL_SOLVER
+7.LOCAL_SOLVER_CANNOT_OBTAIN_PROBLEM_DATA_DIRECTLY_FUNCTIONS_MUST_DO_IT_VIA_DIRECT_ACCESS_ONLY
+PROBLEM_DATACLASS:
+---
+$schema
+---
+PROBLEM_OBJECTIVE:
+---
+$objective
+---
+PROBLEM_CONSTRAINTS:
+---
+$constraints
+---
+TARGET_HEURISTIC_GENERAL_SIGNATURE= "def Heuristic(currentSolution,best, best_score, generate_neighbour, evaluate_solution, perturb_solution, other_params)".                       
+COMPONENT:
 "Perturbation Function:"
 $perturb
 "Sample Solution":
@@ -468,17 +548,18 @@ OUTPUT_FORMAT_STRICT:
 "COMPONENT_VERSION" "$version", "FEEDBACK" """)
 
 
-feedbackTemplateSP= Template("""TASK:GENERATE_FEEDBACK_FOR_COMPONENT_REFINEMENT 
+
+feedbackTemplateSPEval= Template("""TASK:GENERATE_FEEDBACK_FOR_COMPONENT_REFINEMENT 
 FEEDBACK_INSTRUCTIONS:
-0.LOCAL_SOLVER_ERRORS_MUST_BE_CORRECTED_FIRST_IF_NO_CRITICAL_ERRORS_OUTPUT: "CODE_STATUS: OPTIMAL"
+0.CRITICAL_LOCAL_SOLVER_ERRORS_MUST_BE_CORRECTED_BEFORE_REFINEMENT_ALLOWED
 1.GENERATE_CONSTRUCTIVE_FEEDBACK:ONLY_FLAG_ERRORS_THAT_CRASH_LOCAL_SOLVER
 2.FORMAT_AS_KEY_VALUE_PAIRS.EX: "E_CODE_PARSE_ERROR: Solution is string, while E_CODE expects an array"
-3.IF_ERRORS_FOUND_PINPOINT_SPECIFIC_FLAW_SUGGEST_SPECIFIC_IMPROVEMENT. MAXIMUM_4_ITEMS_ALLOWED_ONLY_SUGGEST_CHANGES_IF_REDUCES_ERROR_COUNT
+3.IF_ERRORS_FOUND_PINPOINT_SPECIFIC_FLAW_SUGGEST_SPECIFIC_IMPROVEMENT. MAXIMUM_4_ITEMS_ALLOWED_ONLY_SUGGEST_CHANGES_TO_FIX_CRITICAL_ERRORS
 4.PROBLEM_DATACLASS,KNOWN_RANDOM_SOLUTION_AND_VALUE_GIVEN: USE_PYTHON_TOOL_TO_EVALUATE_COMPONENTS_TO_ASSERT_CORRECTNESS_OF_COMPONENTS
 5.LOCAL_SOLVER_DESIGNED_FOR_EVALUATION_EXTRA_OUTPUTS_ARE_EXPECTED
 6.CODE_MUST_BE_COMPATIBLE_WITH_SAMPLE_SOLUTION_AND_LOCAL_SOLVER
 7.LOCAL_SOLVER_CANNOT_OBTAIN_PROBLEM_DATA_DIRECTLY_FUNCTIONS_MUST_DO_IT_VIA_DIRECT_ACCESS_ONLY
-8.DO_NOT_FIX_SUCCESS: IF_SCORE_BEATS_KNOWN_BEST_WHILE_CONSISTENT_WITH_DATA_AND_CONSTRAINTS_OUTPUT: "CODE_STATUS: OPTIMAL"
+
 PROBLEM_DEF:
 ---
 $Problem
@@ -487,8 +568,72 @@ TARGET_HEURISTIC_GENERAL_SIGNATURE= "def Heuristic(currentSolution,best, best_sc
 COMPONENTS:
 "Evaluation Function":
 $Eval
+"Sample Solution":
+$SampleSol
+RESULTS_FROM_LOCAL_SOLVER
+Simulated_Annealing
+$resultadosSA
+Iterated_Local_Search
+$resultadosILS
+HillClimbing
+$resultadosHC
+KNOWN_BENCHMARK_SOLUTION
+$knownSol
+EXPECTED_SCORE_FROM_KNOWN_BENCHMARK_SOLUTION
+$knownScore
+OUTPUT_FORMAT_STRICT:
+"COMPONENT_VERSION" "$version", "FEEDBACK" """)
+
+feedbackTemplateSPNb= Template("""TASK:GENERATE_FEEDBACK_FOR_COMPONENT_REFINEMENT 
+FEEDBACK_INSTRUCTIONS:
+0.CRITICAL_LOCAL_SOLVER_ERRORS_MUST_BE_CORRECTED_BEFORE_REFINEMENT_ALLOWED
+1.GENERATE_CONSTRUCTIVE_FEEDBACK:ONLY_FLAG_ERRORS_THAT_CRASH_LOCAL_SOLVER
+2.FORMAT_AS_KEY_VALUE_PAIRS.EX: "E_CODE_PARSE_ERROR: Solution is string, while E_CODE expects an array"
+3.IF_ERRORS_FOUND_PINPOINT_SPECIFIC_FLAW_SUGGEST_SPECIFIC_IMPROVEMENT. MAXIMUM_4_ITEMS_ALLOWED_ONLY_SUGGEST_CHANGES_TO_FIX_CRITICAL_ERRORS
+4.PROBLEM_DATACLASS,KNOWN_RANDOM_SOLUTION_AND_VALUE_GIVEN: USE_PYTHON_TOOL_TO_EVALUATE_COMPONENTS_TO_ASSERT_CORRECTNESS_OF_COMPONENTS
+5.LOCAL_SOLVER_DESIGNED_FOR_EVALUATION_EXTRA_OUTPUTS_ARE_EXPECTED
+6.CODE_MUST_BE_COMPATIBLE_WITH_SAMPLE_SOLUTION_AND_LOCAL_SOLVER
+7.LOCAL_SOLVER_CANNOT_OBTAIN_PROBLEM_DATA_DIRECTLY_FUNCTIONS_MUST_DO_IT_VIA_DIRECT_ACCESS_ONLY
+PROBLEM_DEF:
+---
+$Problem
+---
+TARGET_HEURISTIC_GENERAL_SIGNATURE= "def Heuristic(currentSolution,best, best_score, generate_neighbour, evaluate_solution, perturb_solution, other_params)".                       
+COMPONENTS:
 "Neigbour Function":
 $NB    
+"Sample Solution":
+$SampleSol
+RESULTS_FROM_LOCAL_SOLVER
+Simulated_Annealing
+$resultadosSA
+Iterated_Local_Search
+$resultadosILS
+HillClimbing
+$resultadosHC
+KNOWN_BENCHMARK_SOLUTION
+$knownSol
+EXPECTED_SCORE_FROM_KNOWN_BENCHMARK_SOLUTION
+$knownScore
+OUTPUT_FORMAT_STRICT:
+"COMPONENT_VERSION" "$version", "FEEDBACK" """)
+
+feedbackTemplateSPPerturb= Template("""TASK:GENERATE_FEEDBACK_FOR_COMPONENT_REFINEMENT 
+FEEDBACK_INSTRUCTIONS:
+0.CRITICAL_LOCAL_SOLVER_ERRORS_MUST_BE_CORRECTED_BEFORE_REFINEMENT_ALLOWED
+1.GENERATE_CONSTRUCTIVE_FEEDBACK:ONLY_FLAG_ERRORS_THAT_CRASH_LOCAL_SOLVER
+2.FORMAT_AS_KEY_VALUE_PAIRS.EX: "E_CODE_PARSE_ERROR: Solution is string, while E_CODE expects an array"
+3.IF_ERRORS_FOUND_PINPOINT_SPECIFIC_FLAW_SUGGEST_SPECIFIC_IMPROVEMENT. MAXIMUM_4_ITEMS_ALLOWED_ONLY_SUGGEST_CHANGES_TO_FIX_CRITICAL_ERRORS
+4.PROBLEM_DATACLASS,KNOWN_RANDOM_SOLUTION_AND_VALUE_GIVEN: USE_PYTHON_TOOL_TO_EVALUATE_COMPONENTS_TO_ASSERT_CORRECTNESS_OF_COMPONENTS
+5.LOCAL_SOLVER_DESIGNED_FOR_EVALUATION_EXTRA_OUTPUTS_ARE_EXPECTED
+6.CODE_MUST_BE_COMPATIBLE_WITH_SAMPLE_SOLUTION_AND_LOCAL_SOLVER
+7.LOCAL_SOLVER_CANNOT_OBTAIN_PROBLEM_DATA_DIRECTLY_FUNCTIONS_MUST_DO_IT_VIA_DIRECT_ACCESS_ONLY
+PROBLEM_DEF:
+---
+$Problem
+---
+TARGET_HEURISTIC_GENERAL_SIGNATURE= "def Heuristic(currentSolution,best, best_score, generate_neighbour, evaluate_solution, perturb_solution, other_params)".                       
+COMPONENT:
 "Perturbation Function:"
 $perturb
 "Sample Solution":
@@ -506,6 +651,8 @@ EXPECTED_SCORE_FROM_KNOWN_BENCHMARK_SOLUTION
 $knownScore
 OUTPUT_FORMAT_STRICT:
 "COMPONENT_VERSION" "$version", "FEEDBACK" """)
+
+#8.DO_NOT_FIX_SUCCESS: IF_SCORE_BEATS_KNOWN_BEST_WHILE_CONSISTENT_WITH_DATA_AND_CONSTRAINTS_OUTPUT: "CODE_STATUS: OPTIMAL" -- Por si acaso
 
 def sampleProblemaDB(problemaDB,seed):
     return problemaDB.sample(n=1, random_state=seed) 
@@ -686,14 +833,12 @@ def sampleComponenteDB(componenteDB, problemaID,version,seed):
     return pd.DataFrame([datosComponentes])
 
 ## Feedback tiene que estar enfocado en un solo set de componentes a la vez. El ultimo que fue generado
-def generateFeedbackPrompt(schema,objetivo, restricciones, Eval, Nb, Perturb, SampleSol, resultadosSA, resultadosILS, resultadosTS,resultadosHC, knownSol, knownObj, version):
-    prompt = feedbackTemplate.safe_substitute(
+def generateFeedbackPrompts(schema,objetivo, restricciones, Eval, Nb, Perturb, SampleSol, resultadosSA, resultadosILS, resultadosTS,resultadosHC, knownSol, knownObj, version):
+    promptEval = feedbackTemplateEval.safe_substitute(
         schema=schema,
         objective = objetivo,
         constraints = restricciones, 
         Eval=Eval, 
-        NB=Nb,
-        perturb=Perturb, 
         SampleSol=SampleSol,
         resultadosSA=resultadosSA,
         resultadosILS=resultadosILS, 
@@ -702,14 +847,25 @@ def generateFeedbackPrompt(schema,objetivo, restricciones, Eval, Nb, Perturb, Sa
         knownSol=knownSol, 
         knownScore=knownObj,
         version = version
-    ) 
-    return prompt
-
-def generateFeedbackPromptSP(problema, Eval, Nb, Perturb, SampleSol, resultadosSA, resultadosILS, resultadosTS,resultadosHC, knownSol, knownObj, version):
-    prompt = feedbackTemplateSP.safe_substitute(
-        problema=problema,
-        Eval=Eval, 
+    )
+    promptNb = feedbackTemplateNb.safe_substitute(
+        schema=schema,
+        objective = objetivo,
+        constraints = restricciones, 
         NB=Nb,
+        SampleSol=SampleSol,
+        resultadosSA=resultadosSA,
+        resultadosILS=resultadosILS, 
+        resultadosTS=resultadosTS,
+        resultadosHC=resultadosHC, 
+        knownSol=knownSol, 
+        knownScore=knownObj,
+        version = version
+    ) 
+    promptPerturb = feedbackTemplatePerturb.safe_substitute(
+        schema=schema,
+        objective = objetivo,
+        constraints = restricciones, 
         perturb=Perturb, 
         SampleSol=SampleSol,
         resultadosSA=resultadosSA,
@@ -720,4 +876,43 @@ def generateFeedbackPromptSP(problema, Eval, Nb, Perturb, SampleSol, resultadosS
         knownScore=knownObj,
         version = version
     ) 
-    return prompt
+    return promptEval, promptNb, promptPerturb
+
+def generateFeedbackPromptSP(problema, Eval, Nb, Perturb, SampleSol, resultadosSA, resultadosILS, resultadosTS,resultadosHC, knownSol, knownObj, version):
+    promptEval = feedbackTemplateSPEval.safe_substitute(
+        problema=problema,
+        Eval=Eval, 
+        SampleSol=SampleSol,
+        resultadosSA=resultadosSA,
+        resultadosILS=resultadosILS, 
+        resultadosTS=resultadosTS,
+        resultadosHC=resultadosHC, 
+        knownSol=knownSol, 
+        knownScore=knownObj,
+        version = version
+    ) 
+    promptNb = feedbackTemplateSPNb.safe_substitute(
+        problema=problema,
+        NB=Nb,
+        SampleSol=SampleSol,
+        resultadosSA=resultadosSA,
+        resultadosILS=resultadosILS, 
+        resultadosTS=resultadosTS,
+        resultadosHC=resultadosHC, 
+        knownSol=knownSol, 
+        knownScore=knownObj,
+        version = version
+    ) 
+    promptPerturb = feedbackTemplateSPPerturb.safe_substitute(
+        problema=problema,
+        perturb=Perturb, 
+        SampleSol=SampleSol,
+        resultadosSA=resultadosSA,
+        resultadosILS=resultadosILS, 
+        resultadosTS=resultadosTS,
+        resultadosHC=resultadosHC, 
+        knownSol=knownSol, 
+        knownScore=knownObj,
+        version = version
+    ) 
+    return promptEval, promptNb, promptPerturb
