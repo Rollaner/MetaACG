@@ -53,8 +53,20 @@ def generacionComponentesInicial(schema,objetivo, restricciones, llms, sampleSol
     Nb = json.loads(textoBruto)
     textoBruto = RawPerturb.content[0]['text']
     Perturb = json.loads(textoBruto)
-    #print(Eval['REPRESENTATION'],Eval['EVAL_CODE'], Nb['NB_CODE'], Perturb['PERTURB_CODE'])
-    return Eval, Nb, Perturb, Eval['REPRESENTATION']
+
+    EvalTokenInput = RawEval.usage_metadata.get("input_tokens")
+    EvalTokenOutput = RawEval.usage_metadata.get("output_tokens")
+    EvalTokenTotal = RawEval.usage_metadata.get("total_tokens")
+
+    PerturbTokenInput = RawPerturb.usage_metadata.get("input_tokens")
+    PerturbTokenOutput = RawPerturb.usage_metadata.get("output_tokens")
+    PerturbTokenTotal = RawPerturb.usage_metadata.get("total_tokens")
+
+    NbTokenInput = RawNb.usage_metadata.get("input_tokens")
+    NbTokenOutput = RawNb.usage_metadata.get("output_tokens")
+    NbTokenTotal = RawNb.usage_metadata.get("total_tokens")
+ 
+    return Eval, Nb, Perturb, Eval['REPRESENTATION'], EvalTokenInput,EvalTokenOutput,EvalTokenTotal,NbTokenInput,NbTokenOutput,NbTokenTotal,PerturbTokenInput,PerturbTokenOutput,PerturbTokenTotal
 
 def generacionNuevosComponentes(schema,objetivo, restricciones, llms, sampleSol,resultadoSA, resultadoILS,resultadoTS,feedbackEval,feedbackNb,feedbackPerturb,inspiracionEval,inspiracionPerturb,inspiracionNB) -> Tuple[Any,Any,Any]: ## Requiere TLC para que considere todos los resultados. Mezclemolos en uno. 
     #Hay que hacer que revisa con cada tipo de resultado. No solo Simmulated Annealing
@@ -71,8 +83,20 @@ def generacionNuevosComponentes(schema,objetivo, restricciones, llms, sampleSol,
     textoBruto = RawPerturb.content[0]['text']
     Perturb = json.loads(textoBruto)
     print(Perturb['PERTURB_CODE'])
-    #print(Eval['REPRESENTATION'],Eval['EVAL_CODE'], Nb['NB_CODE'], Perturb['PERTURB_CODE'])
-    return Eval, Nb, Perturb,Eval['REPRESENTATION']
+    
+    EvalTokenInput = RawEval.usage_metadata.get("input_tokens")
+    EvalTokenOutput = RawEval.usage_metadata.get("output_tokens")
+    EvalTokenTotal = RawEval.usage_metadata.get("total_tokens")
+
+    PerturbTokenInput = RawPerturb.usage_metadata.get("input_tokens")
+    PerturbTokenOutput = RawPerturb.usage_metadata.get("output_tokens")
+    PerturbTokenTotal = RawPerturb.usage_metadata.get("total_tokens")
+
+    NbTokenInput = RawNb.usage_metadata.get("input_tokens")
+    NbTokenOutput = RawNb.usage_metadata.get("output_tokens")
+    NbTokenTotal = RawNb.usage_metadata.get("total_tokens")
+
+    return Eval, Nb, Perturb, Eval['REPRESENTATION'], EvalTokenInput,EvalTokenOutput,EvalTokenTotal,NbTokenInput,NbTokenOutput,NbTokenTotal,PerturbTokenInput,PerturbTokenOutput,PerturbTokenTotal
 
 def generacionComponentesInicialSP(problema, llms, sampleSol,inspiracionEval,inspiracionPerturb,inspiracionNB):
     promptEval = generateEvalPromptSP(problema, sampleSol,inspiracionEval)
@@ -87,7 +111,19 @@ def generacionComponentesInicialSP(problema, llms, sampleSol,inspiracionEval,ins
     Nb = json.loads(textoBruto)
     textoBruto = RawPerturb.content[0]['text']
     Perturb = json.loads(textoBruto)
-    return Eval, Nb, Perturb, Eval['REPRESENTATION']
+    EvalTokenInput = RawEval.usage_metadata.get("input_tokens")
+    EvalTokenOutput = RawEval.usage_metadata.get("output_tokens")
+    EvalTokenTotal = RawEval.usage_metadata.get("total_tokens")
+
+    PerturbTokenInput = RawPerturb.usage_metadata.get("input_tokens")
+    PerturbTokenOutput = RawPerturb.usage_metadata.get("output_tokens")
+    PerturbTokenTotal = RawPerturb.usage_metadata.get("total_tokens")
+
+    NbTokenInput = RawNb.usage_metadata.get("input_tokens")
+    NbTokenOutput = RawNb.usage_metadata.get("output_tokens")
+    NbTokenTotal = RawNb.usage_metadata.get("total_tokens")
+
+    return Eval, Nb, Perturb, Eval['REPRESENTATION'], EvalTokenInput,EvalTokenOutput,EvalTokenTotal,NbTokenInput,NbTokenOutput,NbTokenTotal,PerturbTokenInput,PerturbTokenOutput,PerturbTokenTotal
 
 def generacionNuevosComponentesSP(problema, llms, sampleSol,resultadoSA, resultadoILS,resultadoTS,feedbackEval,feedbackNb,feedbackPerturb,inspiracionEval,inspiracionPerturb,inspiracionNB) -> Tuple[Any,Any,Any]: ## Requiere TLC para que considere todos los resultados. Mezclemolos en uno. 
     #Hay que hacer que revisa con cada tipo de resultado. No solo Simmulated Annealing
@@ -104,7 +140,27 @@ def generacionNuevosComponentesSP(problema, llms, sampleSol,resultadoSA, resulta
     textoBruto = RawPerturb.content[0]['text']
     Perturb = json.loads(textoBruto)
     print(Perturb['PERTURB_CODE'])
-    return Eval, Nb, Perturb,Eval['REPRESENTATION']
+    EvalTokenInput = RawEval.usage_metadata.get("input_tokens")
+    EvalTokenOutput = RawEval.usage_metadata.get("output_tokens")
+    EvalTokenTotal = RawEval.usage_metadata.get("total_tokens")
+
+    PerturbTokenInput = RawPerturb.usage_metadata.get("input_tokens")
+    PerturbTokenOutput = RawPerturb.usage_metadata.get("output_tokens")
+    PerturbTokenTotal = RawPerturb.usage_metadata.get("total_tokens")
+
+    NbTokenInput = RawNb.usage_metadata.get("input_tokens")
+    NbTokenOutput = RawNb.usage_metadata.get("output_tokens")
+    NbTokenTotal = RawNb.usage_metadata.get("total_tokens")
+
+    return Eval, Nb, Perturb, Eval['REPRESENTATION'], EvalTokenInput,EvalTokenOutput,EvalTokenTotal,NbTokenInput,NbTokenOutput,NbTokenTotal,PerturbTokenInput,PerturbTokenOutput,PerturbTokenTotal
+
+def generarFeedback(llms, prompt):
+    rawFeedback = llms.generarFeedback(prompt)
+    feedbackText = rawFeedback.content[0]['text'] 
+    feedbackTokenInput = rawFeedback.usage_metadata.get("input_tokens")
+    feedbackTokenOutput = rawFeedback.usage_metadata.get("output_tokens")
+    feedbackTokenTotal = rawFeedback.usage_metadata.get("total_tokens")
+    return feedbackText,feedbackTokenInput,feedbackTokenOutput,feedbackTokenTotal
 
 #Utiliza las DB para guardar las respuestas con versionado. Eso significa que hay que acceder a los archivos y escribir sobre ellos. 
 #Podemos pasar el problema definido en la fase 1 directamente, en vez de sacar uno de la DB. Eso nos deja con dos variantes: seed, y problema predefinido. En ambos casos resultDB, feedbackDB y componenteDB son necesarios
@@ -118,10 +174,9 @@ def optimizarProblemaPreparadoConInspiraciones(problema,schema,problemData, comp
         print(problemaID)
         objetivo, restricciones = jsonProblema['OBJECTIVE'], jsonProblema['CONSTRAINTS']
         inspiracionEval,inspiracionPerturb,inspiracionNB = cargarInspiraciones(inspiracionDB, semilla)
-        Eval, Nb, Perturb, representacion = generacionComponentesInicial(schema, objetivo, restricciones,llms, knownSol, inspiracionEval,inspiracionPerturb,inspiracionNB)
+        Eval, Nb, Perturb, representacion, EvalTokenInput,EvalTokenOutput,EvalTokenTotal,NbTokenInput,NbTokenOutput,NbTokenTotal,PerturbTokenInput,PerturbTokenOutput,PerturbTokenTotal = generacionComponentesInicial(schema, objetivo, restricciones,llms, knownSol, inspiracionEval,inspiracionPerturb,inspiracionNB)
+
         componenteDB = guardarComponentes(problemaID,componenteDB,representacion, Eval, Nb, Perturb, knownSol, iteraciones)
-        respuestas = [] 
-        feedbacks = []
         i: int = 0
         ### proceso iterativo
         while i < iteraciones:
@@ -133,10 +188,10 @@ def optimizarProblemaPreparadoConInspiraciones(problema,schema,problemData, comp
             print(resultadoILS)
             print(resultadoTS)
             print(resultadoHC)
-            resultDB = guardarResultado(problemaID,i,resultDB,representacion, Eval,Nb,Perturb,resultadoSA,knownSol, "NA", "SA", tiempoSA)
-            resultDB = guardarResultado(problemaID,i,resultDB,representacion,Eval,Nb,Perturb,resultadoILS,knownSol, "NA", "ILS", tiempoILS)
-            resultDB = guardarResultado(problemaID,i,resultDB,representacion,Eval,Nb,Perturb,resultadoTS,knownSol, "NA", "TS", tiempoTS)
-            resultDB = guardarResultado(problemaID,i,resultDB,representacion,Eval,Nb,Perturb,resultadoHC,knownSol, "NA", "HC", tiempoHC)
+            resultDB = guardarResultado(problemaID,i,resultDB,representacion, Eval,Nb,Perturb,resultadoSA,knownSol, "NA", "SA", tiempoSA,EvalTokenInput,EvalTokenOutput,EvalTokenTotal,NbTokenInput,NbTokenOutput,NbTokenTotal,PerturbTokenInput,PerturbTokenOutput,PerturbTokenTotal)
+            resultDB = guardarResultado(problemaID,i,resultDB,representacion,Eval,Nb,Perturb,resultadoILS,knownSol, "NA", "ILS", tiempoILS,EvalTokenInput,EvalTokenOutput,EvalTokenTotal,NbTokenInput,NbTokenOutput,NbTokenTotal,PerturbTokenInput,PerturbTokenOutput,PerturbTokenTotal)
+            resultDB = guardarResultado(problemaID,i,resultDB,representacion,Eval,Nb,Perturb,resultadoTS,knownSol, "NA", "TS", tiempoTS,EvalTokenInput,EvalTokenOutput,EvalTokenTotal,NbTokenInput,NbTokenOutput,NbTokenTotal,PerturbTokenInput,PerturbTokenOutput,PerturbTokenTotal)
+            resultDB = guardarResultado(problemaID,i,resultDB,representacion,Eval,Nb,Perturb,resultadoHC,knownSol, "NA", "HC", tiempoHC,EvalTokenInput,EvalTokenOutput,EvalTokenTotal,NbTokenInput,NbTokenOutput,NbTokenTotal,PerturbTokenInput,PerturbTokenOutput,PerturbTokenTotal)
             #bloque de pruebas usando dataset.
             #for sample in samples:
             #    problemData = convertidor(sample)
@@ -155,13 +210,11 @@ def optimizarProblemaPreparadoConInspiraciones(problema,schema,problemData, comp
                 return componenteDB, feedbackDB, resultDB, inspiracionDB
             ### Retroalimentacion
             feedbackPromptEval, feedbackPromptNb, feedbackPromptPerturb = generateFeedbackPrompts(schema, objetivo, restricciones,Eval, Nb, Perturb, knownSol,feedbackCorrectitud, resultadoSA, resultadoILS,resultadoTS,resultadoHC, "NA", "NA", i) #Necesita trabajar con el nuevo sistema de JSON
-            feedbackEval = llms.generarFeedback(feedbackPromptEval).content[0]['text'] 
-            feedbackNb = llms.generarFeedback(feedbackPromptNb).content[0]['text'] 
-            feedbackPerturb = llms.generarFeedback(feedbackPromptPerturb).content[0]['text'] 
-            feedbackDB = guardarFeedback(problemaID,feedbackDB,representacion,Eval, Nb, Perturb, i,feedbackEval, feedbackNb, feedbackPerturb)
-            respuesta = generacionNuevosComponentes(schema, objetivo, restricciones,llms,knownSol,resultadoSA,resultadoILS, resultadoTS,feedbackEval,feedbackNb,feedbackPerturb,inspiracionEval,inspiracionPerturb,inspiracionNB)
-            respuestas.append(respuesta)
-            Eval, Nb, Perturb, representacion = respuesta
+            feedbackEval,FEvalTokenInput,FEvalTokenOutput,FEvalTokenTotal = generarFeedback(llms,feedbackPromptEval)
+            feedbackNb,FNbTokenInput,FbTokenOutput,FNbTokenTotal = generarFeedback(llms,feedbackPromptNb)
+            feedbackPerturb,FPerturbTokenInput,FPerturbTokenOutput,FPerturbTokenTotal = generarFeedback(llms,feedbackPromptPerturb)
+            feedbackDB = guardarFeedback(problemaID,feedbackDB,representacion,Eval, Nb, Perturb, i,feedbackEval, feedbackNb, feedbackPerturb,FEvalTokenInput,FEvalTokenOutput,FEvalTokenTotal,FNbTokenInput,FbTokenOutput,FNbTokenTotal,FPerturbTokenInput,FPerturbTokenOutput,FPerturbTokenTotal) 
+            Eval, Nb, Perturb, representacion, EvalTokenInput,EvalTokenOutput,EvalTokenTotal,NbTokenInput,NbTokenOutput,NbTokenTotal,PerturbTokenInput,PerturbTokenOutput,PerturbTokenTotal = generacionNuevosComponentes(schema, objetivo, restricciones,llms,knownSol,resultadoSA,resultadoILS, resultadoTS,feedbackEval,feedbackNb,feedbackPerturb,inspiracionEval,inspiracionPerturb,inspiracionNB)
             componenteDB = guardarComponentes(problemaID,componenteDB,representacion, Eval, Nb, Perturb, knownSol, i)
             i = i + 1
         resultadoSA, tiempoSA = cronometrarFuncion(evaluarComponentes,Heuristicas.SimulatedAnnealing.SA,Eval, Nb, Perturb,problemData,knownSol,[1000,10,0.9])
@@ -172,10 +225,10 @@ def optimizarProblemaPreparadoConInspiraciones(problema,schema,problemData, comp
         print(resultadoILS)
         print(resultadoTS)
         print(resultadoHC)
-        resultDB = guardarResultado(problemaID,i,resultDB,representacion, Eval,Nb,Perturb,resultadoSA,knownSol, "NA", "SA", tiempoSA)
-        resultDB = guardarResultado(problemaID,i,resultDB,representacion,Eval,Nb,Perturb,resultadoILS,knownSol, "NA", "ILS", tiempoILS)
-        resultDB = guardarResultado(problemaID,i,resultDB,representacion,Eval,Nb,Perturb,resultadoTS,knownSol, "NA", "TS", tiempoTS)
-        resultDB = guardarResultado(problemaID,i,resultDB,representacion,Eval,Nb,Perturb,resultadoHC,knownSol, "NA", "HC", tiempoHC)       
+        resultDB = guardarResultado(problemaID,i,resultDB,representacion, Eval,Nb,Perturb,resultadoSA,knownSol, "NA", "SA", tiempoSA,EvalTokenInput,EvalTokenOutput,EvalTokenTotal,NbTokenInput,NbTokenOutput,NbTokenTotal,PerturbTokenInput,PerturbTokenOutput,PerturbTokenTotal)
+        resultDB = guardarResultado(problemaID,i,resultDB,representacion,Eval,Nb,Perturb,resultadoILS,knownSol, "NA", "ILS", tiempoILS,EvalTokenInput,EvalTokenOutput,EvalTokenTotal,NbTokenInput,NbTokenOutput,NbTokenTotal,PerturbTokenInput,PerturbTokenOutput,PerturbTokenTotal)
+        resultDB = guardarResultado(problemaID,i,resultDB,representacion,Eval,Nb,Perturb,resultadoTS,knownSol, "NA", "TS", tiempoTS,EvalTokenInput,EvalTokenOutput,EvalTokenTotal,NbTokenInput,NbTokenOutput,NbTokenTotal,PerturbTokenInput,PerturbTokenOutput,PerturbTokenTotal)
+        resultDB = guardarResultado(problemaID,i,resultDB,representacion,Eval,Nb,Perturb,resultadoHC,knownSol, "NA", "HC", tiempoHC,EvalTokenInput,EvalTokenOutput,EvalTokenTotal,NbTokenInput,NbTokenOutput,NbTokenTotal,PerturbTokenInput,PerturbTokenOutput,PerturbTokenTotal)       
         return componenteDB, feedbackDB, resultDB, inspiracionDB
 
 def optimizarProblemaPreparado(problema,schema,problemData, componenteDB:pd.DataFrame,resultDB: pd.DataFrame,feedbackDB: pd.DataFrame,inspiracionDB:pd.DataFrame, iteraciones: int, semilla: int):
@@ -185,10 +238,8 @@ def optimizarProblemaPreparado(problema,schema,problemData, componenteDB:pd.Data
         problemaID, jsonProblema, knownSol, knownObj = extraerDatosProblema(problema)
         print(problemaID)
         objetivo, restricciones = jsonProblema['OBJECTIVE'], jsonProblema['CONSTRAINTS']
-        Eval, Nb, Perturb, representacion = generacionComponentesInicial(schema, objetivo, restricciones,llms, knownSol, "NA","NA","NA")
+        Eval, Nb, Perturb, representacion,EvalTokenInput,EvalTokenOutput,EvalTokenTotal,NbTokenInput,NbTokenOutput,NbTokenTotal,PerturbTokenInput,PerturbTokenOutput,PerturbTokenTotal = generacionComponentesInicial(schema, objetivo, restricciones,llms, knownSol, "NA","NA","NA")
         componenteDB = guardarComponentes(problemaID,componenteDB,representacion, Eval, Nb, Perturb, knownSol, iteraciones)
-        respuestas = [] 
-        feedbacks = []
         i: int = 0
         ### proceso iterativo
         while i < iteraciones:
@@ -200,10 +251,10 @@ def optimizarProblemaPreparado(problema,schema,problemData, componenteDB:pd.Data
             print(resultadoILS)
             print(resultadoTS)
             print(resultadoHC)
-            resultDB = guardarResultado(problemaID,i,resultDB,representacion, Eval,Nb,Perturb,resultadoSA,knownSol, "NA", "SA", tiempoSA)
-            resultDB = guardarResultado(problemaID,i,resultDB,representacion,Eval,Nb,Perturb,resultadoILS,knownSol, "NA", "ILS", tiempoILS)
-            resultDB = guardarResultado(problemaID,i,resultDB,representacion,Eval,Nb,Perturb,resultadoTS,knownSol, "NA", "TS", tiempoTS)
-            resultDB = guardarResultado(problemaID,i,resultDB,representacion,Eval,Nb,Perturb,resultadoHC,knownSol, "NA", "HC", tiempoHC)
+            resultDB = guardarResultado(problemaID,i,resultDB,representacion, Eval,Nb,Perturb,resultadoSA,knownSol, "NA", "SA", tiempoSA,EvalTokenInput,EvalTokenOutput,EvalTokenTotal,NbTokenInput,NbTokenOutput,NbTokenTotal,PerturbTokenInput,PerturbTokenOutput,PerturbTokenTotal)
+            resultDB = guardarResultado(problemaID,i,resultDB,representacion,Eval,Nb,Perturb,resultadoILS,knownSol, "NA", "ILS", tiempoILS,EvalTokenInput,EvalTokenOutput,EvalTokenTotal,NbTokenInput,NbTokenOutput,NbTokenTotal,PerturbTokenInput,PerturbTokenOutput,PerturbTokenTotal)
+            resultDB = guardarResultado(problemaID,i,resultDB,representacion,Eval,Nb,Perturb,resultadoTS,knownSol, "NA", "TS", tiempoTS,EvalTokenInput,EvalTokenOutput,EvalTokenTotal,NbTokenInput,NbTokenOutput,NbTokenTotal,PerturbTokenInput,PerturbTokenOutput,PerturbTokenTotal)
+            resultDB = guardarResultado(problemaID,i,resultDB,representacion,Eval,Nb,Perturb,resultadoHC,knownSol, "NA", "HC", tiempoHC,EvalTokenInput,EvalTokenOutput,EvalTokenTotal,NbTokenInput,NbTokenOutput,NbTokenTotal,PerturbTokenInput,PerturbTokenOutput,PerturbTokenTotal)
             ### Corte temprano
             feedbackCorrectitud, correctos = componentesCorrectos(Eval, problemData, knownSol,knownObj,resultadoSA,resultadoTS,resultadoILS,resultadoHC)
             if correctos:
@@ -211,13 +262,11 @@ def optimizarProblemaPreparado(problema,schema,problemData, componenteDB:pd.Data
                 return componenteDB, feedbackDB, resultDB, inspiracionDB
             ### Retroalimentacion
             feedbackPromptEval, feedbackPromptNb, feedbackPromptPerturb = generateFeedbackPrompts(schema, objetivo, restricciones,Eval, Nb, Perturb, knownSol,feedbackCorrectitud,resultadoSA, resultadoILS,resultadoTS,resultadoHC, "NA", "NA", i) #Necesita trabajar con el nuevo sistema de JSON
-            feedbackEval = llms.generarFeedback(feedbackPromptEval).content[0]['text'] 
-            feedbackNb = llms.generarFeedback(feedbackPromptNb).content[0]['text'] 
-            feedbackPerturb = llms.generarFeedback(feedbackPromptPerturb).content[0]['text'] 
-            feedbackDB = guardarFeedback(problemaID,feedbackDB,representacion,Eval, Nb, Perturb, i,feedbackEval, feedbackNb, feedbackPerturb)
-            respuesta = generacionNuevosComponentes(schema, objetivo, restricciones,llms,knownSol,resultadoSA,resultadoILS, resultadoTS,feedbackEval,feedbackNb,feedbackPerturb,"NA","NA","NA")
-            respuestas.append(respuesta)
-            Eval, Nb, Perturb, representacion = respuesta
+            feedbackEval,FEvalTokenInput,FEvalTokenOutput,FEvalTokenTotal = generarFeedback(llms,feedbackPromptEval)
+            feedbackNb,FNbTokenInput,FbTokenOutput,FNbTokenTotal = generarFeedback(llms,feedbackPromptNb)
+            feedbackPerturb,FPerturbTokenInput,FPerturbTokenOutput,FPerturbTokenTotal = generarFeedback(llms,feedbackPromptPerturb)
+            feedbackDB = guardarFeedback(problemaID,feedbackDB,representacion,Eval, Nb, Perturb, i,feedbackEval, feedbackNb, feedbackPerturb,FEvalTokenInput,FEvalTokenOutput,FEvalTokenTotal,FNbTokenInput,FbTokenOutput,FNbTokenTotal,FPerturbTokenInput,FPerturbTokenOutput,FPerturbTokenTotal) 
+            Eval, Nb, Perturb, representacion,EvalTokenInput,EvalTokenOutput,EvalTokenTotal,NbTokenInput,NbTokenOutput,NbTokenTotal,PerturbTokenInput,PerturbTokenOutput,PerturbTokenTotal = generacionNuevosComponentes(schema, objetivo, restricciones,llms,knownSol,resultadoSA,resultadoILS, resultadoTS,feedbackEval,feedbackNb,feedbackPerturb,"NA","NA","NA")
             componenteDB = guardarComponentes(problemaID,componenteDB,representacion, Eval, Nb, Perturb, knownSol, i)
             i = i + 1
         resultadoSA, tiempoSA = cronometrarFuncion(evaluarComponentes,Heuristicas.SimulatedAnnealing.SA,Eval, Nb, Perturb,problemData,knownSol,[1000,10,0.9])
@@ -228,10 +277,10 @@ def optimizarProblemaPreparado(problema,schema,problemData, componenteDB:pd.Data
         print(resultadoILS)
         print(resultadoTS)
         print(resultadoHC)
-        resultDB = guardarResultado(problemaID,i,resultDB,representacion, Eval,Nb,Perturb,resultadoSA,knownSol, "NA", "SA", tiempoSA)
-        resultDB = guardarResultado(problemaID,i,resultDB,representacion,Eval,Nb,Perturb,resultadoILS,knownSol, "NA", "ILS", tiempoILS)
-        resultDB = guardarResultado(problemaID,i,resultDB,representacion,Eval,Nb,Perturb,resultadoTS,knownSol, "NA", "TS", tiempoTS)
-        resultDB = guardarResultado(problemaID,i,resultDB,representacion,Eval,Nb,Perturb,resultadoHC,knownSol, "NA", "HC", tiempoHC)       
+        resultDB = guardarResultado(problemaID,i,resultDB,representacion, Eval,Nb,Perturb,resultadoSA,knownSol, "NA", "SA", tiempoSA,EvalTokenInput,EvalTokenOutput,EvalTokenTotal,NbTokenInput,NbTokenOutput,NbTokenTotal,PerturbTokenInput,PerturbTokenOutput,PerturbTokenTotal)
+        resultDB = guardarResultado(problemaID,i,resultDB,representacion,Eval,Nb,Perturb,resultadoILS,knownSol, "NA", "ILS", tiempoILS,EvalTokenInput,EvalTokenOutput,EvalTokenTotal,NbTokenInput,NbTokenOutput,NbTokenTotal,PerturbTokenInput,PerturbTokenOutput,PerturbTokenTotal)
+        resultDB = guardarResultado(problemaID,i,resultDB,representacion,Eval,Nb,Perturb,resultadoTS,knownSol, "NA", "TS", tiempoTS,EvalTokenInput,EvalTokenOutput,EvalTokenTotal,NbTokenInput,NbTokenOutput,NbTokenTotal,PerturbTokenInput,PerturbTokenOutput,PerturbTokenTotal)
+        resultDB = guardarResultado(problemaID,i,resultDB,representacion,Eval,Nb,Perturb,resultadoHC,knownSol, "NA", "HC", tiempoHC,EvalTokenInput,EvalTokenOutput,EvalTokenTotal,NbTokenInput,NbTokenOutput,NbTokenTotal,PerturbTokenInput,PerturbTokenOutput,PerturbTokenTotal)       
         return componenteDB, feedbackDB, resultDB, inspiracionDB
 
 ## No usa sistema de preparacion. Requiere modificacion para trabajar sin preparacion. Requiere que se cargen los datos de la instancia directamente para trabajar 
@@ -239,11 +288,9 @@ def optimizarProblemaPreparado(problema,schema,problemData, componenteDB:pd.Data
 def optimizarProblemaSinPreparar(problemaID, problema, knownSol, knownObj, componenteDB:pd.DataFrame,resultDB: pd.DataFrame,feedbackDB: pd.DataFrame, iteraciones):
         llms = generador()
         llms.cargarLLMs()
-        
         print(problemaID)
-        Eval, Nb, Perturb, representacion = generacionComponentesInicialSP(problema,llms, knownSol, "NA","NA","NA") #Modificar aqui
+        Eval, Nb, Perturb, representacion, EvalTokenInput,EvalTokenOutput,EvalTokenTotal,NbTokenInput,NbTokenOutput,NbTokenTotal,PerturbTokenInput,PerturbTokenOutput,PerturbTokenTotal = generacionComponentesInicialSP(problema,llms, knownSol, "NA","NA","NA") #Modificar aqui
         componenteDB = guardarComponentes(problemaID,componenteDB,representacion, Eval, Nb, Perturb, knownSol, iteraciones)
-        respuestas = [] 
         i: int = 0
         ### proceso iterativo
         while i < iteraciones:
@@ -255,10 +302,10 @@ def optimizarProblemaSinPreparar(problemaID, problema, knownSol, knownObj, compo
             print(resultadoILS)
             print(resultadoTS)
             print(resultadoHC)
-            resultDB = guardarResultado(problemaID,i,resultDB,representacion, Eval,Nb,Perturb,resultadoSA,knownSol, "NA", "SA", tiempoSA)
-            resultDB = guardarResultado(problemaID,i,resultDB,representacion,Eval,Nb,Perturb,resultadoILS,knownSol, "NA", "ILS", tiempoILS)
-            resultDB = guardarResultado(problemaID,i,resultDB,representacion,Eval,Nb,Perturb,resultadoTS,knownSol, "NA", "TS", tiempoTS)
-            resultDB = guardarResultado(problemaID,i,resultDB,representacion,Eval,Nb,Perturb,resultadoHC,knownSol, "NA", "HC", tiempoHC)
+            resultDB = guardarResultado(problemaID,i,resultDB,representacion, Eval,Nb,Perturb,resultadoSA,knownSol, "NA", "SA", tiempoSA,EvalTokenInput,EvalTokenOutput,EvalTokenTotal,NbTokenInput,NbTokenOutput,NbTokenTotal,PerturbTokenInput,PerturbTokenOutput,PerturbTokenTotal)
+            resultDB = guardarResultado(problemaID,i,resultDB,representacion,Eval,Nb,Perturb,resultadoILS,knownSol, "NA", "ILS", tiempoILS,EvalTokenInput,EvalTokenOutput,EvalTokenTotal,NbTokenInput,NbTokenOutput,NbTokenTotal,PerturbTokenInput,PerturbTokenOutput,PerturbTokenTotal)
+            resultDB = guardarResultado(problemaID,i,resultDB,representacion,Eval,Nb,Perturb,resultadoTS,knownSol, "NA", "TS", tiempoTS,EvalTokenInput,EvalTokenOutput,EvalTokenTotal,NbTokenInput,NbTokenOutput,NbTokenTotal,PerturbTokenInput,PerturbTokenOutput,PerturbTokenTotal)
+            resultDB = guardarResultado(problemaID,i,resultDB,representacion,Eval,Nb,Perturb,resultadoHC,knownSol, "NA", "HC", tiempoHC,EvalTokenInput,EvalTokenOutput,EvalTokenTotal,NbTokenInput,NbTokenOutput,NbTokenTotal,PerturbTokenInput,PerturbTokenOutput,PerturbTokenTotal)
             ##Corte Temprano
             feedbackCorrectitud, correctos = componentesCorrectosSP(problemaID,inspiracionDB,representacion, Eval, Nb, Perturb, knownSol, i)
             if correctos:
@@ -266,13 +313,11 @@ def optimizarProblemaSinPreparar(problemaID, problema, knownSol, knownObj, compo
                 return componenteDB, feedbackDB, resultDB, inspiracionDB
             ### Retroalimentacion
             feedbackPromptEval, feedbackPromptNb, feedbackPromptPerturb = generateFeedbackPromptSP(problema,Eval, Nb, Perturb, knownSol,feedbackCorrectitud,resultadoSA, resultadoILS,resultadoTS,resultadoHC, "NA", "NA", i) 
-            feedbackEval = llms.generarFeedback(feedbackPromptEval).content[0]['text'] 
-            feedbackNb = llms.generarFeedback(feedbackPromptNb).content[0]['text'] 
-            feedbackPerturb = llms.generarFeedback(feedbackPromptPerturb).content[0]['text'] 
-            feedbackDB = guardarFeedback(problemaID,feedbackDB,representacion,Eval, Nb, Perturb, i,feedbackEval, feedbackNb, feedbackPerturb)
-            respuesta = generacionNuevosComponentesSP(problema,llms,knownSol,resultadoSA,resultadoILS, resultadoTS,feedbackEval, feedbackNb, feedbackPerturb, "NA","NA","NA") 
-            respuestas.append(respuesta)
-            Eval, Nb, Perturb, representacion = respuesta
+            feedbackEval,FEvalTokenInput,FEvalTokenOutput,FEvalTokenTotal = generarFeedback(llms,feedbackPromptEval)
+            feedbackNb,FNbTokenInput,FbTokenOutput,FNbTokenTotal = generarFeedback(llms,feedbackPromptNb)
+            feedbackPerturb,FPerturbTokenInput,FPerturbTokenOutput,FPerturbTokenTotal = generarFeedback(llms,feedbackPromptPerturb)
+            feedbackDB = guardarFeedback(problemaID,feedbackDB,representacion,Eval, Nb, Perturb, i,feedbackEval, feedbackNb, feedbackPerturb,FEvalTokenInput,FEvalTokenOutput,FEvalTokenTotal,FNbTokenInput,FbTokenOutput,FNbTokenTotal,FPerturbTokenInput,FPerturbTokenOutput,FPerturbTokenTotal) 
+            Eval, Nb, Perturb, representacion, EvalTokenInput,EvalTokenOutput,EvalTokenTotal,NbTokenInput,NbTokenOutput,NbTokenTotal,PerturbTokenInput,PerturbTokenOutput,PerturbTokenTotal = generacionNuevosComponentesSP(problema,llms,knownSol,resultadoSA,resultadoILS, resultadoTS,feedbackEval, feedbackNb, feedbackPerturb, "NA","NA","NA") 
             componenteDB = guardarComponentes(problemaID,componenteDB,representacion, Eval, Nb, Perturb, knownSol, i)
             i = i + 1
         resultadoSA, tiempoSA = cronometrarFuncion(evaluarComponentesSP,Heuristicas.SimulatedAnnealing.SA,Eval, Nb, Perturb,knownSol,[1000,10,0.9])
@@ -282,10 +327,10 @@ def optimizarProblemaSinPreparar(problemaID, problema, knownSol, knownObj, compo
         print(resultadoSA)
         print(resultadoILS)
         print(resultadoTS)
-        resultDB = guardarResultado(problemaID,i,resultDB,representacion, Eval,Nb,Perturb,resultadoSA,knownSol, "NA", "SA", tiempoSA)
-        resultDB = guardarResultado(problemaID,i,resultDB,representacion,Eval,Nb,Perturb,resultadoILS,knownSol, "NA", "ILS", tiempoILS)
-        resultDB = guardarResultado(problemaID,i,resultDB,representacion,Eval,Nb,Perturb,resultadoTS,knownSol, "NA", "TS", tiempoTS)
-        resultDB = guardarResultado(problemaID,i,resultDB,representacion,Eval,Nb,Perturb,resultadoHC,knownSol, "NA", "HC", tiempoHC)       
+        resultDB = guardarResultado(problemaID,i,resultDB,representacion, Eval,Nb,Perturb,resultadoSA,knownSol, "NA", "SA", tiempoSA,EvalTokenInput,EvalTokenOutput,EvalTokenTotal,NbTokenInput,NbTokenOutput,NbTokenTotal,PerturbTokenInput,PerturbTokenOutput,PerturbTokenTotal)
+        resultDB = guardarResultado(problemaID,i,resultDB,representacion,Eval,Nb,Perturb,resultadoILS,knownSol, "NA", "ILS", tiempoILS,EvalTokenInput,EvalTokenOutput,EvalTokenTotal,NbTokenInput,NbTokenOutput,NbTokenTotal,PerturbTokenInput,PerturbTokenOutput,PerturbTokenTotal)
+        resultDB = guardarResultado(problemaID,i,resultDB,representacion,Eval,Nb,Perturb,resultadoTS,knownSol, "NA", "TS", tiempoTS,EvalTokenInput,EvalTokenOutput,EvalTokenTotal,NbTokenInput,NbTokenOutput,NbTokenTotal,PerturbTokenInput,PerturbTokenOutput,PerturbTokenTotal)
+        resultDB = guardarResultado(problemaID,i,resultDB,representacion,Eval,Nb,Perturb,resultadoHC,knownSol, "NA", "HC", tiempoHC,EvalTokenInput,EvalTokenOutput,EvalTokenTotal,NbTokenInput,NbTokenOutput,NbTokenTotal,PerturbTokenInput,PerturbTokenOutput,PerturbTokenTotal)       
         return componenteDB, feedbackDB, resultDB, inspiracionDB
 
 ## Detecta si todo obtuvo resultados validos, y si alguna de las metaheuristicas llego al optimo. Si una lo hizo, sabemos que se puede, y que los componententes estan correctos.
@@ -434,7 +479,7 @@ def cargarComponente(codigo: str, nombre: str = "<componente>"):
             return value
     raise ValueError(f"No se encontró una función (callable) en el código cargado con exec().")
 
-def guardarResultado(problemaID, iteracion,resultDB, representacion, evaluacion, vecindad, perturbacion, resultados,mejorSolucion, optimo, MH, tiempo):
+def guardarResultado(problemaID, iteracion,resultDB, representacion, evaluacion, vecindad, perturbacion, resultados,mejorSolucion, optimo, MH, tiempo, EvalTokenInput,EvalTokenOutput,EvalTokenTotal,NbTokenInput,NbTokenOutput,NbTokenTotal,PerturbTokenInput,PerturbTokenOutput,PerturbTokenTotal):
     datosResultado = {
         'ID_Problema': problemaID,
         'Iteracion': iteracion,
@@ -446,14 +491,23 @@ def guardarResultado(problemaID, iteracion,resultDB, representacion, evaluacion,
         'Solucion': mejorSolucion,
         'Valor Optimo': optimo,
         'Metaheuristica': MH,
-        'Tiempo': tiempo
+        'Tiempo': tiempo,
+        'TokensEvalIn' : EvalTokenInput,
+        'TokensEvalOut' : EvalTokenOutput,
+        'TokensEvalTot' : EvalTokenTotal,
+        'TokensNbIn' : NbTokenInput,
+        'TokensNbOut' : NbTokenOutput,
+        'TokensNbTot' : NbTokenTotal,
+        'TokensPerturbIn' : PerturbTokenInput,
+        'TokensPertubOut' : PerturbTokenOutput,
+        'TokensPerturbTot' : PerturbTokenTotal
     }
     dfAux = pd.DataFrame([datosResultado])
     dfAux = dfAux.dropna(axis=1, how='all')
     resultDBMod = pd.concat([resultDB,dfAux], ignore_index=True) 
     return resultDBMod
 
-def guardarFeedback(problemaID,feedbackDB, representacion, Eval, Nb, Perturb, version, feedbackEval, feedbackNb, feedbackPerturb):
+def guardarFeedback(problemaID,feedbackDB, representacion, Eval, Nb, Perturb, version, feedbackEval, feedbackNb, feedbackPerturb,EvalTokenInput,EvalTokenOutput,EvalTokenTotal,NbTokenInput,NbTokenOutput,NbTokenTotal,PerturbTokenInput,PerturbTokenOutput,PerturbTokenTotal):
     datosFeedback = {
         'ID_Problema': problemaID,
         'Representacion': representacion,
@@ -463,7 +517,16 @@ def guardarFeedback(problemaID,feedbackDB, representacion, Eval, Nb, Perturb, ve
         'Version': version,
         'FeedbackEval': feedbackEval,
         'FeedbackNb': feedbackNb,
-        'FeedbackPerturbn': feedbackPerturb
+        'FeedbackPerturbn': feedbackPerturb,
+        'TokensEvalIn' : EvalTokenInput,
+        'TokensEvalOut' : EvalTokenOutput,
+        'TokensEvalTot' : EvalTokenTotal,
+        'TokensNbIn' : NbTokenInput,
+        'TokensNbOut' : NbTokenOutput,
+        'TokensNbTot' : NbTokenTotal,
+        'TokensPerturbIn' : PerturbTokenInput,
+        'TokensPertubOut' : PerturbTokenOutput,
+        'TokensPerturbTot' : PerturbTokenTotal
     }
     dfAux = pd.DataFrame([datosFeedback])
     feedbackDBMod = pd.concat([feedbackDB,dfAux], ignore_index=True)

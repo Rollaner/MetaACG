@@ -33,7 +33,7 @@ def main():
     load_dotenv()
     #Modificacion para pruebas, prepara modo batch por defecto. Mas rapido en caso de que el codigo falle
     if len(sys.argv) == 1:
-        sys.argv.extend(['K', 'knap', '-plt'])
+        sys.argv.extend(['K', 'knap', '-p'])
         #sys.argv.extend(['GC', 'graph', '-plt'])
         #sys.argv.extend(['TS', 'travel', '-plt'])
     DATA_PATH= os.path.join(os.path.dirname(__file__), 'Data')

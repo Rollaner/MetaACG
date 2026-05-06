@@ -13,28 +13,6 @@ def reiniciarLLMSDef():
     llms.cargarLLMs()
     return llms
 
-def prepararBatch(instancias:DataLoader,llms:generador, path, tipo:str):
-    tiempoInicio = time.perf_counter()
-    header = ['Instancia','Traje','Tipo de problema', 'Subtipo de problema', 'Iteracion', 'Respuesta', 'feedback','Datos', 'Resultado esperado','Valor Objetivo', 'tiempo']
-    for instancia in instancias.getAllInstancias():
-        respuesta = extraerProblema(llms,instancia)
-        if instancia.problemSubType == "Inverted":
-            continue
-        else:
-            mejorSolucion = instancia.parsedSolution
-            valorOptimo = instancia.objectiveScore
-        datos = [instancia.claveInstancia, instancia.problemCostume, instancia.problemType, instancia.problemSubType, 0, respuesta.content[0]['text'],"NA", instancia.instanceContent,mejorSolucion, valorOptimo, time.perf_counter()-tiempoInicio]
-        guardarResultados(datos, header, path)
-        print(instancia.claveInstancia, respuesta.content[0]['text'])
-        for i in range(2):
-            feedback = evaluarExtraccion(llms,instancia, respuesta.content[0]['text'])
-            datos = [instancia.claveInstancia, instancia.problemCostume, instancia.problemType, instancia.problemSubType, i+1, respuesta.content[0]['text'], feedback.content[0]['text'], instancia.instanceContent,instancia.parsedSolution, instancia.objectiveScore, time.perf_counter()-tiempoInicio]         
-            respuesta = refinarDescripcion(llms,instancia,feedback)
-            guardarResultados(datos, header, path)
-            print(instancia.claveInstancia, respuesta.content[0]['text'])
-        reiniciarLLMSDef()
-    print("Fin proceso de definicion matematica")
-
 def prepararSinDefinir(instancias:DataLoader,llms:generador, path, tipo:str):
     tiempoInicio = time.perf_counter()
     header = ['Instancia','Traje','Tipo de problema', 'Subtipo de problema', 'Iteracion', 'Respuesta', 'Datos', 'Resultado esperado','Valor Objetivo', 'tiempo']
@@ -50,18 +28,30 @@ def extraerProblema(llms:generador,instancia:NLInstance):
     #prompt = generateSeedPromptWithProblemTYpe(instanciaPrueba.problem,instanciaPrueba.problemType,semilla)
     ## Preparar enjambre de LLMs (Actualmente solo con ChatGPT)
     respuesta = llms.extraccionDatos(prompt)
-    return respuesta
+    contenidos = respuesta.content[0]['text']
+    TokenInput = respuesta.usage_metadata.get("input_tokens")
+    TokenOutput = respuesta.usage_metadata.get("output_tokens")
+    TokenTotal = respuesta.usage_metadata.get("total_tokens")
+    return contenidos,TokenInput,TokenOutput,TokenTotal  
 
 
 def evaluarExtraccion(llms: generador,instancia:NLInstance, respuesta):
     prompt = generateFeedbackPrompt(instancia.problem,respuesta,instancia.parsedSolution,instancia.objectiveScore)
     feedback = llms.extraccionDatos(prompt)
-    return feedback
+    contenidos = feedback.content[0]['text']
+    TokenInput = respuesta.usage_metadata.get("input_tokens")
+    TokenOutput = respuesta.usage_metadata.get("output_tokens")
+    TokenTotal = respuesta.usage_metadata.get("total_tokens")
+    return contenidos,TokenInput,TokenOutput,TokenTotal  
 
 def refinarDescripcion(llms: generador,instancia:NLInstance,feedback:str):
     prompt = updatePrompt(instancia.problem, instancia.problemType,instancia.objectiveScore,feedback)
     respuesta = llms.extraccionDatos(prompt)
-    return respuesta
+    contenidos = respuesta.content[0]['text']
+    TokenInput = respuesta.usage_metadata.get("input_tokens")
+    TokenOutput = respuesta.usage_metadata.get("output_tokens")
+    TokenTotal = respuesta.usage_metadata.get("total_tokens")
+    return contenidos,TokenInput,TokenOutput,TokenTotal  
 
 def extraerIndividual(dataloader:DataLoader,llms:generador,path,dataStructPath, ID:str, schema:str,dataclassProblema):
     tiempoInicio = time.perf_counter()
@@ -72,8 +62,7 @@ def extraerIndividual(dataloader:DataLoader,llms:generador,path,dataStructPath, 
         i = 1
         mejorSolucion = instancia.parsedSolution
         valorOptimo = instancia.objectiveScore
-        respuesta = extraerProblema(llms,instancia)
-        latestResponse = respuesta.content[0]['text']
+        respuesta, tokensIn, tokensOut, tokensTot = extraerProblema(llms,instancia)
         #Se assume que esta correcto. Si falla cargar resultados, ahi recien se itera
         try:
             extractedSchema = json.loads(respuesta.content[0]['text'])
@@ -81,8 +70,8 @@ def extraerIndividual(dataloader:DataLoader,llms:generador,path,dataStructPath, 
             _cargarDatosProblema(extractedSchema,dataclassProblema, convertidorText) #presente solo para saber si funciona, Un smoke test en essencia
         except Exception as e: #La prueba consiste en cargar los datos a memoria usando el dataclass del plugin. Si funciona sabemos que 1 se puede cargar, 2 los datos son lo suficientemente validos para generar una solucion.  
             print("Excepcion. Primer intento fallido")  
-            feedback = evaluarExtraccion(llms,instancia, respuesta.content[0]['text']) # podriamos darle el contenido de le excepcion
-            respuesta = refinarDescripcion(llms,instancia,feedback)
+            feedback, tokensIn, tokensOut, tokensTot = evaluarExtraccion(llms,instancia, respuesta.content[0]['text']) # podriamos darle el contenido de le excepcion
+            respuesta, tokensIn, tokensOut, tokensTot = refinarDescripcion(llms,instancia,feedback)
             extractedSchema = json.loads(respuesta.content[0]['text'])
             convertidorText = generarDataClass(llms, extractedSchema["DATA_ROLES"], extractedSchema, schema)
             latestFeedback = feedback.content[0]['text'] 
