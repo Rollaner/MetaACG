@@ -449,6 +449,8 @@ $Eval
 "Sample Solution":
 $SampleSol
 RESULTS_FROM_LOCAL_SOLVER
+RANDOM_CORRECTNESS_CHECK_RESULTS
+$feedbackCorrectitud
 Simulated_Annealing
 $resultadosSA
 Iterated_Local_Search
@@ -571,6 +573,8 @@ $Eval
 "Sample Solution":
 $SampleSol
 RESULTS_FROM_LOCAL_SOLVER
+RANDOM_CORRECTNESS_CHECK_RESULTS
+$feedbackCorrectitud
 Simulated_Annealing
 $resultadosSA
 Iterated_Local_Search
@@ -833,13 +837,14 @@ def sampleComponenteDB(componenteDB, problemaID,version,seed):
     return pd.DataFrame([datosComponentes])
 
 ## Feedback tiene que estar enfocado en un solo set de componentes a la vez. El ultimo que fue generado
-def generateFeedbackPrompts(schema,objetivo, restricciones, Eval, Nb, Perturb, SampleSol, resultadosSA, resultadosILS, resultadosTS,resultadosHC, knownSol, knownObj, version):
+def generateFeedbackPrompts(schema,objetivo, restricciones, Eval, Nb, Perturb, SampleSol, feedbackCorrectitud, resultadosSA, resultadosILS, resultadosTS,resultadosHC, knownSol, knownObj, version):
     promptEval = feedbackTemplateEval.safe_substitute(
         schema=schema,
         objective = objetivo,
         constraints = restricciones, 
         Eval=Eval, 
         SampleSol=SampleSol,
+        feedbackCorrectitud = feedbackCorrectitud,
         resultadosSA=resultadosSA,
         resultadosILS=resultadosILS, 
         resultadosTS=resultadosTS, 
@@ -878,11 +883,12 @@ def generateFeedbackPrompts(schema,objetivo, restricciones, Eval, Nb, Perturb, S
     ) 
     return promptEval, promptNb, promptPerturb
 
-def generateFeedbackPromptSP(problema, Eval, Nb, Perturb, SampleSol, resultadosSA, resultadosILS, resultadosTS,resultadosHC, knownSol, knownObj, version):
+def generateFeedbackPromptSP(problema, Eval, Nb, Perturb, SampleSol, feedbackCorrectitud,resultadosSA, resultadosILS, resultadosTS,resultadosHC, knownSol, knownObj, version):
     promptEval = feedbackTemplateSPEval.safe_substitute(
         problema=problema,
         Eval=Eval, 
         SampleSol=SampleSol,
+        feedbackCorrectitud = feedbackCorrectitud,
         resultadosSA=resultadosSA,
         resultadosILS=resultadosILS, 
         resultadosTS=resultadosTS,

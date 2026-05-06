@@ -149,12 +149,12 @@ def optimizarProblemaPreparadoConInspiraciones(problema,schema,problemData, comp
             #    resultDB = guardarResultado(problemaID,resultDB,representacion,Eval,Nb,Perturb,resultadoTS,SampleSol, sample.solution, "TS", tiempoTS)
             #    resultDB = guardarResultado(problemaID,resultDB,representacion,Eval,Nb,Perturb,resultadoHC,SampleSol, sample.solution, "HC", tiempoHC)
             ### Corte temprano
-
-            if componentesCorrectos(Eval, problemData, knownSol,knownObj,resultadoSA,resultadoTS,resultadoILS,resultadoHC):
+            feedbackCorrectitud, correctos = componentesCorrectos(Eval, problemData, knownSol,knownObj,resultadoSA,resultadoTS,resultadoILS,resultadoHC)
+            if correctos:
                 inspiracionDB = guardarComponentes(problemaID,inspiracionDB,representacion, Eval, Nb, Perturb, knownSol, i)
                 return componenteDB, feedbackDB, resultDB, inspiracionDB
             ### Retroalimentacion
-            feedbackPromptEval, feedbackPromptNb, feedbackPromptPerturb = generateFeedbackPrompts(schema, objetivo, restricciones,Eval, Nb, Perturb, knownSol,resultadoSA, resultadoILS,resultadoTS,resultadoHC, "NA", "NA", i) #Necesita trabajar con el nuevo sistema de JSON
+            feedbackPromptEval, feedbackPromptNb, feedbackPromptPerturb = generateFeedbackPrompts(schema, objetivo, restricciones,Eval, Nb, Perturb, knownSol,feedbackCorrectitud, resultadoSA, resultadoILS,resultadoTS,resultadoHC, "NA", "NA", i) #Necesita trabajar con el nuevo sistema de JSON
             feedbackEval = llms.generarFeedback(feedbackPromptEval).content[0]['text'] 
             feedbackNb = llms.generarFeedback(feedbackPromptNb).content[0]['text'] 
             feedbackPerturb = llms.generarFeedback(feedbackPromptPerturb).content[0]['text'] 
@@ -204,14 +204,13 @@ def optimizarProblemaPreparado(problema,schema,problemData, componenteDB:pd.Data
             resultDB = guardarResultado(problemaID,i,resultDB,representacion,Eval,Nb,Perturb,resultadoILS,knownSol, "NA", "ILS", tiempoILS)
             resultDB = guardarResultado(problemaID,i,resultDB,representacion,Eval,Nb,Perturb,resultadoTS,knownSol, "NA", "TS", tiempoTS)
             resultDB = guardarResultado(problemaID,i,resultDB,representacion,Eval,Nb,Perturb,resultadoHC,knownSol, "NA", "HC", tiempoHC)
-             ### Corte temprano
-            if componentesCorrectos(Eval, problemData, knownSol,knownObj,resultadoSA,resultadoTS,resultadoILS,resultadoHC):
+            ### Corte temprano
+            feedbackCorrectitud, correctos = componentesCorrectos(Eval, problemData, knownSol,knownObj,resultadoSA,resultadoTS,resultadoILS,resultadoHC)
+            if correctos:
                 inspiracionDB = guardarComponentes(problemaID,inspiracionDB,representacion, Eval, Nb, Perturb, knownSol, i)
                 return componenteDB, feedbackDB, resultDB, inspiracionDB
-            #else
-                
             ### Retroalimentacion
-            feedbackPromptEval, feedbackPromptNb, feedbackPromptPerturb = generateFeedbackPrompts(schema, objetivo, restricciones,Eval, Nb, Perturb, knownSol,resultadoSA, resultadoILS,resultadoTS,resultadoHC, "NA", "NA", i) #Necesita trabajar con el nuevo sistema de JSON
+            feedbackPromptEval, feedbackPromptNb, feedbackPromptPerturb = generateFeedbackPrompts(schema, objetivo, restricciones,Eval, Nb, Perturb, knownSol,feedbackCorrectitud,resultadoSA, resultadoILS,resultadoTS,resultadoHC, "NA", "NA", i) #Necesita trabajar con el nuevo sistema de JSON
             feedbackEval = llms.generarFeedback(feedbackPromptEval).content[0]['text'] 
             feedbackNb = llms.generarFeedback(feedbackPromptNb).content[0]['text'] 
             feedbackPerturb = llms.generarFeedback(feedbackPromptPerturb).content[0]['text'] 
@@ -261,11 +260,12 @@ def optimizarProblemaSinPreparar(problemaID, problema, knownSol, knownObj, compo
             resultDB = guardarResultado(problemaID,i,resultDB,representacion,Eval,Nb,Perturb,resultadoTS,knownSol, "NA", "TS", tiempoTS)
             resultDB = guardarResultado(problemaID,i,resultDB,representacion,Eval,Nb,Perturb,resultadoHC,knownSol, "NA", "HC", tiempoHC)
             ##Corte Temprano
-            if componentesCorrectosSP(Eval, knownSol,knownObj,resultadoSA,resultadoTS,resultadoILS,resultadoHC):
+            feedbackCorrectitud, correctos = componentesCorrectosSP(problemaID,inspiracionDB,representacion, Eval, Nb, Perturb, knownSol, i)
+            if correctos:
                 inspiracionDB = guardarComponentes(problemaID,inspiracionDB,representacion, Eval, Nb, Perturb, knownSol, i)
                 return componenteDB, feedbackDB, resultDB, inspiracionDB
             ### Retroalimentacion
-            feedbackPromptEval, feedbackPromptNb, feedbackPromptPerturb = generateFeedbackPromptSP(problema,Eval, Nb, Perturb, knownSol,resultadoSA, resultadoILS,resultadoTS,resultadoHC, "NA", "NA", i) 
+            feedbackPromptEval, feedbackPromptNb, feedbackPromptPerturb = generateFeedbackPromptSP(problema,Eval, Nb, Perturb, knownSol,feedbackCorrectitud,resultadoSA, resultadoILS,resultadoTS,resultadoHC, "NA", "NA", i) 
             feedbackEval = llms.generarFeedback(feedbackPromptEval).content[0]['text'] 
             feedbackNb = llms.generarFeedback(feedbackPromptNb).content[0]['text'] 
             feedbackPerturb = llms.generarFeedback(feedbackPromptPerturb).content[0]['text'] 
@@ -292,56 +292,52 @@ def optimizarProblemaSinPreparar(problemaID, problema, knownSol, knownObj, compo
 def componentesCorrectos(Eval, problemData, knownSol, knownObj, *args):
     optimoPresente:bool = False
     errorNoDetectado:bool = True
-    resultadosConfiables:bool = False
 
     try:
         eval = cargarComponente(Eval['EVAL_CODE'], "<evaluate_solution>")
-        print(f"Loaded 'EVAL_CODE' into variable 'evaluate_solution'. Name: {eval.__name__}")
+        #print(f"Loaded 'EVAL_CODE' into variable 'evaluate_solution'. Name: {eval.__name__}")
     except Exception as e:
-        return False
+        return generarDiagnostico(f"Failed to load TEST_SOL: {e}. TEST_SOL: {knownSol}"), False
     
     puntajeCalculado = Eval(knownSol,problemData)
-    if puntajeCalculado == knownObj:
-        resultadosConfiables = True
-
+    if puntajeCalculado != knownObj:
+        return f"EVAL_CODE(TEST_SOL) desn't match expected TEST_SOL Score.", False 
     for resultados in args:
         try: 
             currentSolucion,currentScore, mejorSolucion, mejorScore = resultados
         except Exception as e:
-            #print(f"Error fatal de procesado en: {resultados}")
-            return False #estos NO estan correctos, algo no paso.
+            return f"Output results not in correct format. got: {resultados}. Expected [currentSolution,currentScore, bestSolution, bestScore]", False
         if (mejorScore >= knownObj):
             optimoPresente = True
         if (not isinstance(currentSolucion, (list, tuple)) or not isinstance(currentScore, numbers.Real) or not isinstance(mejorSolucion, (list, tuple))or not isinstance(mejorScore, numbers.Real)):
             errorNoDetectado = False        
-    return (resultadosConfiables and optimoPresente and errorNoDetectado)
+    return "EVAL_CODE_PASSED_ALL_TESTS", (optimoPresente and errorNoDetectado)
 
 def componentesCorrectosSP(Eval, knownSol, knownObj, *args):
     optimoPresente:bool = False
     errorNoDetectado:bool = True
-    resultadosConfiables:bool = False
 
     try:
         eval = cargarComponente(Eval['EVAL_CODE'], "<evaluate_solution>")
         print(f"Loaded 'EVAL_CODE' into variable 'evaluate_solution'. Name: {eval.__name__}")
     except Exception as e:
-        return False
+        return generarDiagnostico(f"Failed to load TEST_SOL: {e}. TEST_SOL: {knownSol}"), False
     
     puntajeCalculado = Eval(knownSol)
-    if puntajeCalculado == knownObj:
-        resultadosConfiables = True
+    if puntajeCalculado != knownObj:
+        return f"EVAL_CODE(TEST_SOL) desn't match expected TEST_SOL Score.", False 
 
     for resultados in args:
         try: 
             currentSolucion,currentScore, mejorSolucion, mejorScore = resultados
         except Exception as e:
-            #print(f"Error fatal de procesado en: {resultados}")
-            return False #estos NO estan correctos, algo no paso.
+            return f"Output results not in correct format. got: {resultados}. Expected [currentSolution,currentScore, bestSolution, bestScore]", False
+        
         if (mejorScore >= knownObj):
             optimoPresente = True
         if (not isinstance(currentSolucion, (list, tuple)) or not isinstance(currentScore, numbers.Real) or not isinstance(mejorSolucion, (list, tuple))or not isinstance(mejorScore, numbers.Real)):
             errorNoDetectado = False        
-    return (resultadosConfiables and optimoPresente and errorNoDetectado)
+    return "EVAL_CODE_PASSED_ALL_TESTS", (optimoPresente and errorNoDetectado)
 
 def cargarDatosProblema(problemData, standardDataclass, convertidorText):
     convertidor = cargarComponente(convertidorText)
