@@ -138,8 +138,6 @@ CRITICAL_INSTRUCTIONS:
                         
 INSPIRATIONS:
 $Inspirations    
-RESULTS_FORMAT "{current, currentScore, best, bestScore}"
-$Resultados
 FEEDBACK:
 $Feedback
 """)
@@ -176,8 +174,6 @@ CRITICAL_INSTRUCTIONS:
                                                          
 INSPIRATIONS:
 $Inspirations
-RESULTS_FORMAT "{current, currentScore, best, bestScore}"
-$Resultados
 FEEDBACK:
 $Feedback
 """)
@@ -214,8 +210,6 @@ CRITICAL_INSTRUCTIONS:
                         
 INSPIRATIONS:
 $Inspirations
-RESULTS_FORMAT "{current, currentScore, best, bestScore}"
-$Resultados
 FEEDBACK:
 $Feedback
 """)
@@ -354,8 +348,6 @@ CRITICAL_INSTRUCTIONS:
                         
 INSPIRATIONS:
 $Inspirations    
-RESULTS_FORMAT "{current, currentScore, best, bestScore}"
-$Resultados
 FEEDBACK:
 $Feedback
 """)
@@ -384,8 +376,6 @@ CRITICAL_INSTRUCTIONS:
                                                          
 INSPIRATIONS:
 $Inspirations
-RESULTS_FORMAT "{current, currentScore, best, bestScore}"
-$Resultados
 FEEDBACK:
 $Feedback
 """)
@@ -414,8 +404,6 @@ CRITICAL_INSTRUCTIONS:
                         
 INSPIRATIONS:
 $Inspirations
-RESULTS_FORMAT "{current, currentScore, best, bestScore}"
-$Resultados
 FEEDBACK:
 $Feedback
 """)
@@ -449,14 +437,7 @@ $Eval
 "Sample Solution":
 $SampleSol
 RESULTS_FROM_LOCAL_SOLVER
-RANDOM_CORRECTNESS_CHECK_RESULTS
-$feedbackCorrectitud
-Simulated_Annealing
-$resultadosSA
-Iterated_Local_Search
-$resultadosILS
-HillClimbing
-$resultadosHC
+$resultados 
 KNOWN_BENCHMARK_SOLUTION
 $knownSol
 EXPECTED_SCORE_FROM_KNOWN_BENCHMARK_SOLUTION
@@ -493,19 +474,13 @@ $NB
 "Sample Solution":
 $SampleSol
 RESULTS_FROM_LOCAL_SOLVER
-Simulated_Annealing
-$resultadosSA
-Iterated_Local_Search
-$resultadosILS
-HillClimbing
-$resultadosHC
+$resultados 
 KNOWN_BENCHMARK_SOLUTION
 $knownSol
 EXPECTED_SCORE_FROM_KNOWN_BENCHMARK_SOLUTION
 $knownScore
 OUTPUT_FORMAT_STRICT:
 "COMPONENT_VERSION" "$version", "FEEDBACK" """)
-
 
 feedbackTemplatePerturb= Template("""TASK:GENERATE_FEEDBACK_FOR_COMPONENT_REFINEMENT 
 FEEDBACK_INSTRUCTIONS:
@@ -536,20 +511,13 @@ $perturb
 "Sample Solution":
 $SampleSol
 RESULTS_FROM_LOCAL_SOLVER
-Simulated_Annealing
-$resultadosSA
-Iterated_Local_Search
-$resultadosILS
-HillClimbing
-$resultadosHC
+$resultados 
 KNOWN_BENCHMARK_SOLUTION
 $knownSol
 EXPECTED_SCORE_FROM_KNOWN_BENCHMARK_SOLUTION
 $knownScore
 OUTPUT_FORMAT_STRICT:
 "COMPONENT_VERSION" "$version", "FEEDBACK" """)
-
-
 
 feedbackTemplateSPEval= Template("""TASK:GENERATE_FEEDBACK_FOR_COMPONENT_REFINEMENT 
 FEEDBACK_INSTRUCTIONS:
@@ -609,12 +577,7 @@ $NB
 "Sample Solution":
 $SampleSol
 RESULTS_FROM_LOCAL_SOLVER
-Simulated_Annealing
-$resultadosSA
-Iterated_Local_Search
-$resultadosILS
-HillClimbing
-$resultadosHC
+$resultados 
 KNOWN_BENCHMARK_SOLUTION
 $knownSol
 EXPECTED_SCORE_FROM_KNOWN_BENCHMARK_SOLUTION
@@ -643,12 +606,7 @@ $perturb
 "Sample Solution":
 $SampleSol
 RESULTS_FROM_LOCAL_SOLVER
-Simulated_Annealing
-$resultadosSA
-Iterated_Local_Search
-$resultadosILS
-HillClimbing
-$resultadosHC
+$resultados 
 KNOWN_BENCHMARK_SOLUTION
 $knownSol
 EXPECTED_SCORE_FROM_KNOWN_BENCHMARK_SOLUTION
@@ -677,14 +635,13 @@ def generateEvalPrompt(schema,objetivo, restricciones, samplesol,inspirations):
     return prompt
 #Updatea el prompt, assume una sola fila por version. 
 
-def updateEvalPrompt(schema,objetivo, restricciones, resultados, feedback,samplesol,inspirations):
+def updateEvalPrompt(schema,objetivo, restricciones, feedback,samplesol,inspirations):
     prompt = templateEvalUpdate.safe_substitute(
         schema = schema,
         objective = objetivo,
         constraints = restricciones,
         sampleSol = samplesol,
         Inspirations = inspirations,
-        Resultados = resultados,
         Feedback = feedback
     )
     return prompt
@@ -700,14 +657,13 @@ def generateNBPrompt(schema,objetivo, restricciones,samplesol,inspirations):
     return prompt
 #Updatea el prompt, assume una sola fila por version. 
 
-def updateNBPrompt(schema,objetivo, restricciones, resultados, feedback,samplesol,inspirations):
+def updateNBPrompt(schema,objetivo, restricciones, feedback,samplesol,inspirations):
     prompt = templateNBUpdate.safe_substitute(
         schema = schema,
         objective = objetivo,
         constraints = restricciones,
         sampleSol = samplesol,
         Inspirations = inspirations,
-        Resultados = resultados,
         Feedback = feedback
     )
     return prompt
@@ -724,14 +680,13 @@ def generatePerturbPrompt(schema,objetivo, restricciones, samplesol,inspirations
     return prompt
 #Updatea el prompt, assume una sola fila por version. 
 
-def updatePerturbPrompt(schema,objetivo, restricciones, resultados, feedback, samplesol,inspirations):
+def updatePerturbPrompt(schema,objetivo, restricciones, feedback, samplesol,inspirations):
     prompt = templatePerturbUpdate.safe_substitute(
         schema = schema,
         objective = objetivo,
         constraints = restricciones,
         sampleSol = samplesol,
         Inspirations = inspirations,
-        Resultados = resultados,
         Feedback = feedback
     )
     return prompt
@@ -747,12 +702,11 @@ def generateEvalPromptSP(schema,objetivo, restricciones, samplesol,inspirations)
     return prompt
 #Updatea el prompt, assume una sola fila por version. 
 
-def updateEvalPromptSP(problema, resultados, feedback,samplesol,inspirations):
+def updateEvalPromptSP(problema, feedback,samplesol,inspirations):
     prompt = templateEvalUpdateSP.safe_substitute(
         problem = problema,
         sampleSol = samplesol,
         Inspirations = inspirations,
-        Resultados = resultados,
         Feedback = feedback
     )
     return prompt
@@ -765,12 +719,11 @@ def generateNBPromptSP(problema,samplesol,inspirations):
     ) 
     return prompt
 
-def updateNBPromptSP(problema,resultados, feedback,samplesol,inspirations):
+def updateNBPromptSP(problema, feedback,samplesol,inspirations):
     prompt = templateNBUpdateSP.safe_substitute(
         problem = problema,
         sampleSol = samplesol,
         Inspirations = inspirations,
-        Resultados = resultados,
         Feedback = feedback
     )
     return prompt
@@ -784,12 +737,11 @@ def generatePerturbPromptSP(problema,  samplesol,inspirations):
     ) 
     return prompt
 
-def updatePerturbPromptSP(problema,  resultados, feedback, samplesol,inspirations):
+def updatePerturbPromptSP(problema, feedback, samplesol,inspirations):
     prompt = templatePerturbUpdateSP.safe_substitute(
         problem = problema,
         sampleSol = samplesol,
         Inspirations = inspirations,
-        Resultados = resultados,
         Feedback = feedback
     )
     return prompt
@@ -837,7 +789,11 @@ def sampleComponenteDB(componenteDB, problemaID,version,seed):
     return pd.DataFrame([datosComponentes])
 
 ## Feedback tiene que estar enfocado en un solo set de componentes a la vez. El ultimo que fue generado
-def generateFeedbackPrompts(schema,objetivo, restricciones, Eval, Nb, Perturb, SampleSol, feedbackCorrectitud, resultadosSA, resultadosILS, resultadosTS,resultadosHC, knownSol, knownObj, version):
+def generateFeedbackPrompts(schema,objetivo, restricciones, Eval, Nb, Perturb, SampleSol, feedbackCorrectitud, knownSol, knownObj, version, *args):
+    resultados = ""
+    for arg in args:
+        resultado, tiempo, _, nombre = arg
+        resultados += f"\n{nombre}_RESULTS:\n Result: {resultado}\n- Elapsed_time: {tiempo}\n"
     promptEval = feedbackTemplateEval.safe_substitute(
         schema=schema,
         objective = objetivo,
@@ -845,10 +801,7 @@ def generateFeedbackPrompts(schema,objetivo, restricciones, Eval, Nb, Perturb, S
         Eval=Eval, 
         SampleSol=SampleSol,
         feedbackCorrectitud = feedbackCorrectitud,
-        resultadosSA=resultadosSA,
-        resultadosILS=resultadosILS, 
-        resultadosTS=resultadosTS, 
-        resultadosHC=resultadosHC, 
+        resultados = resultados,
         knownSol=knownSol, 
         knownScore=knownObj,
         version = version
@@ -859,10 +812,7 @@ def generateFeedbackPrompts(schema,objetivo, restricciones, Eval, Nb, Perturb, S
         constraints = restricciones, 
         NB=Nb,
         SampleSol=SampleSol,
-        resultadosSA=resultadosSA,
-        resultadosILS=resultadosILS, 
-        resultadosTS=resultadosTS,
-        resultadosHC=resultadosHC, 
+        resultados = resultados,
         knownSol=knownSol, 
         knownScore=knownObj,
         version = version
@@ -873,26 +823,24 @@ def generateFeedbackPrompts(schema,objetivo, restricciones, Eval, Nb, Perturb, S
         constraints = restricciones, 
         perturb=Perturb, 
         SampleSol=SampleSol,
-        resultadosSA=resultadosSA,
-        resultadosILS=resultadosILS, 
-        resultadosTS=resultadosTS,
-        resultadosHC=resultadosHC, 
+        resultados = resultados,
         knownSol=knownSol, 
         knownScore=knownObj,
         version = version
     ) 
     return promptEval, promptNb, promptPerturb
 
-def generateFeedbackPromptSP(problema, Eval, Nb, Perturb, SampleSol, feedbackCorrectitud,resultadosSA, resultadosILS, resultadosTS,resultadosHC, knownSol, knownObj, version):
+def generateFeedbackPromptSP(problema, Eval, Nb, Perturb, SampleSol, feedbackCorrectitud, knownSol, knownObj, version, *args):
+    resultados = ""
+    for arg in args:
+        resultado, tiempo, _, nombre = arg
+        resultados += f"\n{nombre}_RESULTS:\n Result: {resultado}\n- Elapsed_time: {tiempo}\n"
     promptEval = feedbackTemplateSPEval.safe_substitute(
         problema=problema,
         Eval=Eval, 
         SampleSol=SampleSol,
         feedbackCorrectitud = feedbackCorrectitud,
-        resultadosSA=resultadosSA,
-        resultadosILS=resultadosILS, 
-        resultadosTS=resultadosTS,
-        resultadosHC=resultadosHC, 
+        resultados = resultados,
         knownSol=knownSol, 
         knownScore=knownObj,
         version = version
@@ -901,10 +849,7 @@ def generateFeedbackPromptSP(problema, Eval, Nb, Perturb, SampleSol, feedbackCor
         problema=problema,
         NB=Nb,
         SampleSol=SampleSol,
-        resultadosSA=resultadosSA,
-        resultadosILS=resultadosILS, 
-        resultadosTS=resultadosTS,
-        resultadosHC=resultadosHC, 
+        resultados = resultados,
         knownSol=knownSol, 
         knownScore=knownObj,
         version = version
@@ -913,10 +858,7 @@ def generateFeedbackPromptSP(problema, Eval, Nb, Perturb, SampleSol, feedbackCor
         problema=problema,
         perturb=Perturb, 
         SampleSol=SampleSol,
-        resultadosSA=resultadosSA,
-        resultadosILS=resultadosILS, 
-        resultadosTS=resultadosTS,
-        resultadosHC=resultadosHC, 
+        resultados = resultados,
         knownSol=knownSol, 
         knownScore=knownObj,
         version = version

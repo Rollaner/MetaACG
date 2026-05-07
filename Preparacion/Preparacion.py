@@ -39,9 +39,9 @@ def evaluarExtraccion(llms: generador,instancia:NLInstance, respuesta):
     prompt = generateFeedbackPrompt(instancia.problem,respuesta,instancia.parsedSolution,instancia.objectiveScore)
     feedback = llms.extraccionDatos(prompt)
     contenidos = feedback.content[0]['text']
-    TokenInput = respuesta.usage_metadata.get("input_tokens")
-    TokenOutput = respuesta.usage_metadata.get("output_tokens")
-    TokenTotal = respuesta.usage_metadata.get("total_tokens")
+    TokenInput = feedback.usage_metadata.get("input_tokens")
+    TokenOutput = feedback.usage_metadata.get("output_tokens")
+    TokenTotal = feedback.usage_metadata.get("total_tokens")
     return contenidos,TokenInput,TokenOutput,TokenTotal  
 
 def refinarDescripcion(llms: generador,instancia:NLInstance,feedback:str):
@@ -65,17 +65,17 @@ def extraerIndividual(dataloader:DataLoader,llms:generador,path,dataStructPath, 
         respuesta, tokensIn, tokensOut, tokensTot = extraerProblema(llms,instancia)
         #Se assume que esta correcto. Si falla cargar resultados, ahi recien se itera
         try:
-            extractedSchema = json.loads(respuesta.content[0]['text'])
+            extractedSchema = json.loads(respuesta)
             convertidorText = generarDataClass(llms, extractedSchema["DATA_ROLES"], extractedSchema, schema)
             _cargarDatosProblema(extractedSchema,dataclassProblema, convertidorText) #presente solo para saber si funciona, Un smoke test en essencia
         except Exception as e: #La prueba consiste en cargar los datos a memoria usando el dataclass del plugin. Si funciona sabemos que 1 se puede cargar, 2 los datos son lo suficientemente validos para generar una solucion.  
             print("Excepcion. Primer intento fallido")  
-            feedback, tokensIn, tokensOut, tokensTot = evaluarExtraccion(llms,instancia, respuesta.content[0]['text']) # podriamos darle el contenido de le excepcion
+            feedback, tokensIn, tokensOut, tokensTot = evaluarExtraccion(llms,instancia, respuesta) # podriamos darle el contenido de le excepcion
             respuesta, tokensIn, tokensOut, tokensTot = refinarDescripcion(llms,instancia,feedback)
-            extractedSchema = json.loads(respuesta.content[0]['text'])
+            extractedSchema = json.loads(respuesta)
             convertidorText = generarDataClass(llms, extractedSchema["DATA_ROLES"], extractedSchema, schema)
-            latestFeedback = feedback.content[0]['text'] 
-            latestResponse = respuesta.content[0]['text']
+            latestFeedback = feedback 
+            latestResponse = respuesta
             i = 2
         ## con esto solo guarda lo que funciono. I lleva cuenta de la cantidad de intentos que tomo. 
         datos = [instancia.claveInstancia, instancia.problemCostume, instancia.problemType, instancia.problemSubType, i, latestResponse, latestFeedback, instancia.instanceContent, instancia.parsedSolution, instancia.objectiveScore, time.perf_counter()-tiempoInicio]   
